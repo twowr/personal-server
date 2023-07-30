@@ -128,6 +128,10 @@ func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func imageHandler(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath string) {
 	files, err := os.ReadDir(requestedPath)
 	if err != nil {
@@ -171,6 +175,7 @@ func main() {
 	http.HandleFunc("/", mainRequestHandler)
 	http.HandleFunc("/favicon.ico", handleIcon)
 	http.HandleFunc("/storage/", storageRequestHandler)
+	http.HandleFunc("/image/", imageHandler)
 
 	fmt.Println("listening on port 61102")
 	if err := http.ListenAndServe(":61102", nil); err != nil {
