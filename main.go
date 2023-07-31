@@ -78,18 +78,6 @@ func mainRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type File struct {
-	IsDir   string
-	Name    string
-	Path    string
-	LastMod string
-}
-
-type PageData struct {
-	Title string
-	Files []File
-}
-
 func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
 	switch r.Method {
@@ -111,7 +99,17 @@ func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 				rawWriteDirContent(w, r, requestedPath)
 			}
 
-			data := PageData{
+			type File struct {
+				IsDir   string
+				Name    string
+				Path    string
+				LastMod string
+			}
+
+			data := struct {
+				Title string
+				Files []File
+			}{
 				Title: dir.Name(),
 				Files: []File{},
 			}
