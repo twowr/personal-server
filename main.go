@@ -173,17 +173,17 @@ func imageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type Image struct {
+	type Img struct {
 		ImageAddress string
 		Name         string
 	}
 
 	data := struct {
 		CurrentPath string
-		Images      []Image
+		Images      []Img
 	}{
 		CurrentPath: string(requestedPath),
-		Images:      []Image{},
+		Images:      []Img{},
 	}
 
 	walkErr := filepath.Walk(string(requestedPath.toServerPath()),
@@ -212,8 +212,8 @@ func imageHandler(w http.ResponseWriter, r *http.Request) {
 				return nil
 			}
 
-			data.Images = append(data.Images, Image{
-				ImageAddress: "../" + string(address),
+			data.Images = append(data.Images, Img{
+				ImageAddress: strings.Repeat("../", strings.Count(filepath.Clean(r.URL.Path), "\\")) + string(address), //r.Host + "/" + string(address) doesn't work for some reason
 				Name:         filepath.Base(string(address)),
 			})
 
