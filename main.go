@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -46,7 +47,7 @@ func main() {
 	http.HandleFunc(string(Image), imageHandler)
 
 	fmt.Println("listening on port 61102")
-	if err := http.ListenAndServe(":61102", nil); err != nil {
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 		return
 	}
@@ -160,6 +161,72 @@ func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 func imageHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
+	requestedPath := webPath(string(Storage))
+	if r.URL.Path != string(Image) {
+		requestedPath = webPath("/" + strings.Replace(r.URL.Path, string(Image), "", 1)).sanitizeDot()
+	}
+
+	tmpl, err := template.ParseFiles("image.html")
+	if err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, err.Error())
+		return
+	}
+
+	type Image struct {
+		ImageAddress string
+		Name         string
+	}
+
+	data := struct {
+		CurrentPath string
+		Images      []Image
+	}{
+		CurrentPath: string(requestedPath),
+		Images:      []Image{},
+	}
+
+	walkErr := filepath.Walk(string(requestedPath.toServerPath()),
+		func(path string, _info fs.FileInfo, _err error) error {
+			if len(strings.Split(path, ".")) != 2 {
+				return nil
+			}
+			storagePath, err := filepath.Abs("./storage")
+			if err != nil {
+				return err
+			}
+
+			address := webPath(strings.Replace(path, storagePath, "", 1))
+			address = webPath(strings.ReplaceAll(string(address), "\\", "/"))
+
+			extFilter := []string{".png", ".jpg"}
+			match := false
+			for _, ext := range extFilter {
+				if filepath.Ext(string(address)) == ext {
+					match = true
+					break
+				}
+			}
+
+			if !match {
+				return nil
+			}
+
+			data.Images = append(data.Images, Image{
+				ImageAddress: "../" + string(address),
+				Name:         filepath.Base(string(address)),
+			})
+
+			return nil
+		})
+
+	if walkErr != nil {
+		fmt.Println(walkErr)
+		fmt.Fprint(w, walkErr.Error())
+		return
+	}
+
+	tmpl.Execute(w, data)
 }
 
 func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath webPath) {

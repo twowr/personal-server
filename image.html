@@ -1,0 +1,26 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image</title>
+    <style>
+        #container {
+            display: grid;
+            grid-template-columns: auto auto auto;
+        }
+
+        img {
+            object-fit: cover;
+            max-width: 33vw;
+        }
+    </style>
+</head>
+<body>
+    <span>{{.CurrentPath}}</span>
+    <div id="container">
+        {{range .Images}}
+            <a href="{{.ImageAddress}}"><img src="{{.ImageAddress}}" alt="{{.Name}}"></a>
+        {{end}}
+    </div>
+</body>
+</html>
