@@ -47,7 +47,7 @@ func main() {
 	http.HandleFunc(string(Image), imageHandler)
 
 	fmt.Println("listening on port 61102")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":61102", nil); err != nil {
 		log.Fatal(err)
 		return
 	}
