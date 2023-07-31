@@ -160,7 +160,6 @@ func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 func imageHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
-
 }
 
 func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath webPath) {
