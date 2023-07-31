@@ -12,6 +12,46 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 )
 
+type webPath string
+
+type serverPath string
+
+const (
+	Storage webPath = "/storage/"
+	Image   webPath = "/image/"
+)
+
+func (path webPath) sanitizeDot() webPath {
+	resultPath := fmt.Sprintf(".%v", path)
+	base := filepath.Base(resultPath)
+	offset := func() int {
+		if resultPath[len(resultPath)-1:] == "/" {
+			return 1
+		}
+		return 0
+	}()
+	resultPath = resultPath[:len(resultPath)-len(base)-offset]
+	resultPath = strings.ReplaceAll(resultPath, ".", "") + base
+	return webPath(resultPath)
+}
+
+func (path webPath) toServerPath() serverPath {
+	return serverPath("." + path)
+}
+
+func main() {
+	http.HandleFunc("/", mainRequestHandler)
+	http.HandleFunc("/favicon.ico", handleIcon)
+	http.HandleFunc(string(Storage), storageRequestHandler)
+	http.HandleFunc(string(Image), imageHandler)
+
+	fmt.Println("listening on port 61102")
+	if err := http.ListenAndServe(":61102", nil); err != nil {
+		log.Fatal(err)
+		return
+	}
+}
+
 func mainRequestHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
 	switch r.Method {
@@ -54,18 +94,10 @@ func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
 	switch r.Method {
 	case http.MethodGet:
-		requestedPath := fmt.Sprintf(".%v", r.URL.Path)
-		base := filepath.Base(requestedPath)
-		offset := func() int {
-			if requestedPath[len(requestedPath)-1:] == "/" {
-				return 1
-			}
-			return 0
-		}()
-		requestedPath = requestedPath[:len(requestedPath)-len(base)-offset]
-		requestedPath = "." + strings.ReplaceAll(requestedPath, ".", "") + base
+		requestedPath := webPath(r.URL.Path)
+		requestedPath = requestedPath.sanitizeDot()
 
-		dir, err := os.Stat(requestedPath)
+		dir, err := os.Stat(string(requestedPath.toServerPath()))
 		if err != nil {
 			fmt.Println(err)
 			fmt.Fprint(w, err.Error())
@@ -84,7 +116,7 @@ func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 				Files: []File{},
 			}
 
-			files, err := os.ReadDir(requestedPath)
+			files, err := os.ReadDir(string(requestedPath.toServerPath()))
 			if err != nil {
 				fmt.Println(err)
 				fmt.Fprint(w, err.Error())
@@ -107,21 +139,21 @@ func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 						}
 					}(),
 					Name:    file.Name(),
-					Path:    requestedPath[1:] + "/" + file.Name(),
+					Path:    string(requestedPath)[1:] + "/" + file.Name(),
 					LastMod: lastMod,
 				})
 			}
 
 			tmpl.Execute(w, data)
 		case false:
-			contentType, err := mimetype.DetectFile(requestedPath)
+			contentType, err := mimetype.DetectFile(string(requestedPath.toServerPath()))
 			if err != nil {
 				fmt.Println(err)
 			}
 
 			w.Header().Set("Content-Type", contentType.String())
 			w.Header().Set("Content-Disposition", "inline")
-			http.ServeFile(w, r, requestedPath)
+			http.ServeFile(w, r, string(requestedPath.toServerPath()))
 		}
 	default:
 		fmt.Fprintf(w, "no")
@@ -129,11 +161,12 @@ func storageRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func imageHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
 
 }
 
-func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath string) {
-	files, err := os.ReadDir(requestedPath)
+func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath webPath) {
+	files, err := os.ReadDir(string(requestedPath.toServerPath()))
 	if err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, err.Error())
@@ -151,7 +184,7 @@ func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath st
 			}(),
 			file.Name(),
 			func() string {
-				return requestedPath[1:] + "/" + file.Name()
+				return string(requestedPath)[1:] + "/" + file.Name()
 			}(),
 			func() string {
 				fileInfo, err := file.Info()
@@ -169,17 +202,4 @@ func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath st
 
 func handleIcon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "favicon.ico")
-}
-
-func main() {
-	http.HandleFunc("/", mainRequestHandler)
-	http.HandleFunc("/favicon.ico", handleIcon)
-	http.HandleFunc("/storage/", storageRequestHandler)
-	http.HandleFunc("/image/", imageHandler)
-
-	fmt.Println("listening on port 61102")
-	if err := http.ListenAndServe(":61102", nil); err != nil {
-		log.Fatal(err)
-		return
-	}
 }
