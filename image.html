@@ -10,8 +10,37 @@
         }
 
         img {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+        }
+
+        #image {
+            position: relative;
+            width: 33vw;
+            height: 33vw;
+        }
+
+        #image:hover #cover {
+            opacity: 0;
+        }
+
+        #image:hover #full {
+            opacity: 1;
+        }
+
+        #cover {
+            z-index: 3;
             object-fit: cover;
-            max-width: 33vw;
+            opacity: 1;
+            transition: opacity 0.3s ease-in;
+        }
+
+        #full {
+            z-index: 2;
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
         }
     </style>
 </head>
@@ -19,7 +48,10 @@
     <span>{{.CurrentPath}}</span>
     <div id="container">
         {{range .Images}}
-            <a href="{{.ImageAddress}}"><img src="{{.ImageAddress}}" alt="{{.Name}}"></a>
+            <div id="image">
+                <a href="{{.ImageAddress}}"><img id="cover" src="{{.ImageAddress}}" alt="{{.Name}}"></a>
+                <a href="{{.ImageAddress}}"><img id="full" src="{{.ImageAddress}}" alt="{{.Name}}"></a>
+            </div>
         {{end}}
     </div>
 </body>
