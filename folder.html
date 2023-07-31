@@ -25,7 +25,7 @@
 <body>
     <pre>
         {{range .Files}}
-            {{.IsDir}} <a href="{{.Path}}">{{.Name}}</a>
+            {{.IsDir}} <a href="/{{.Path}}">{{.Name}}</a>
             Last modified: {{.LastMod}}
 
         {{end}}
