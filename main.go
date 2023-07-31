@@ -74,7 +74,7 @@ func mainRequestHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "NOTE: only request to the /storage path will be treated this way\n")
 		fmt.Fprint(w, "      more storage path might be added in the future but most\n")
 		fmt.Fprint(w, "      base path will be reserved for features, not storage\n\n\n")
-		fmt.Fprint(w, "|  go to path /image to see all available image\n")
+		fmt.Fprint(w, "|  go to path /image to see all available images\n")
 		fmt.Fprint(w, "|             ^^^^^^^^\n")
 		fmt.Fprint(w, "|____> IPADDRESS:61102/image\n\n")
 		fmt.Fprint(w, "every endpoint you request after /image\n")
