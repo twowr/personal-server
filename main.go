@@ -18,8 +18,9 @@ type webPath string
 type serverPath string
 
 const (
-	Storage webPath = "/storage/"
-	Image   webPath = "/image/"
+	Storage   webPath = "/storage/"
+	Image     webPath = "/image/"
+	Countdown webPath = "/countdown/"
 )
 
 func (path webPath) sanitizeDot() webPath {
@@ -45,6 +46,7 @@ func main() {
 	http.HandleFunc("/favicon.ico", handleIcon)
 	http.HandleFunc(string(Storage), storageRequestHandler)
 	http.HandleFunc(string(Image), imageHandler)
+	http.HandleFunc(string(Countdown), countdownHandler)
 
 	fmt.Println("listening on port 61102")
 	if err := http.ListenAndServe(":61102", nil); err != nil {
@@ -245,6 +247,11 @@ func imageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tmpl.Execute(w, data)
+}
+
+func countdownHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
+	http.ServeFile(w, r, "countdown.html")
 }
 
 func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath webPath) {
