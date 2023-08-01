@@ -37,7 +37,7 @@
     
         function update() {
             const now = new Date()
-            const IsNewYear = (now % aYearInMillisecond) <= aDayInMillisecond? true : false
+            const IsNewYear = (now % aYearInMillisecond) <= aDayInMillisecond
             if (IsNewYear) {
                 text.textContent = "Happy New Year!!!"
             }
