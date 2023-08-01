@@ -32,19 +32,18 @@
     </div>
     <script>
         const text = document.getElementById("text")
-        const aYearInMillisecond = 3.154e+10
-        const aDayInMillisecond = 8.64e+7
     
         function update() {
             const now = new Date()
-            const IsNewYear = (now % aYearInMillisecond) <= aDayInMillisecond
+            const IsNewYear = now.getDate() === 1 && now.getMonth() === 0
             if (IsNewYear) {
                 text.textContent = "Happy New Year!!!"
+                return
             }
     
             if (!IsNewYear) {
-                remain = aYearInMillisecond - (now % aYearInMillisecond)
-                let d = Math.floor(remain / 1000 / 60 / 60 / 24).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})
+                remain = (new Date((new Date()).getFullYear() + 1, 0, 1)) - now.getTime()
+                let d = String(Math.floor(remain / 1000 / 60 / 60 / 24))
                 const h = (Math.floor(remain / 1000 / 60 / 60) % 24).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})
                 const m = (Math.floor(remain / 1000 / 60) % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})
                 const s = (Math.floor(remain / 1000) % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})
