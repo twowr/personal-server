@@ -20,7 +20,13 @@ type serverPath string
 const (
 	Storage   webPath = "/storage/"
 	Image     webPath = "/image/"
+	Audio     webPath = "/audio/"
 	Countdown webPath = "/countdown/"
+)
+
+var (
+	ImageExtension []string = []string{".png", ".jpg"}
+	AudioExtension []string = []string{".mp3", ".wav"}
 )
 
 func (path webPath) sanitizeDot() webPath {
@@ -46,6 +52,7 @@ func main() {
 	http.HandleFunc("/favicon.ico", handleIcon)
 	http.HandleFunc(string(Storage), storageRequestHandler)
 	http.HandleFunc(string(Image), imageHandler)
+	http.HandleFunc(string(Audio), audioHandler)
 	http.HandleFunc(string(Countdown), countdownHandler)
 
 	fmt.Println("listening on port 61102")
@@ -219,7 +226,7 @@ func imageHandler(w http.ResponseWriter, r *http.Request) {
 			address := webPath(strings.Replace(path, storagePath, "", 1))
 			address = webPath(strings.ReplaceAll(string(address), "\\", "/"))
 
-			extFilter := []string{".png", ".jpg"}
+			extFilter := ImageExtension
 			match := false
 			for _, ext := range extFilter {
 				if filepath.Ext(string(address)) == ext {
@@ -234,6 +241,76 @@ func imageHandler(w http.ResponseWriter, r *http.Request) {
 
 			data.Images = append(data.Images, Img{
 				ImageAddress: strings.Repeat("../", strings.Count(filepath.Clean(r.URL.Path), "\\")) + string(address), //r.Host + "/" + string(address) doesn't work for some reason
+				Name:         filepath.Base(string(address)),
+			})
+
+			return nil
+		})
+
+	if walkErr != nil {
+		fmt.Println(walkErr)
+		fmt.Fprint(w, walkErr.Error())
+		return
+	}
+
+	tmpl.Execute(w, data)
+}
+
+func audioHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
+	requestedPath := webPath(string(Storage))
+	if r.URL.Path != string(Audio) {
+		requestedPath = webPath("/" + strings.Replace(r.URL.Path, string(Image), "", 1)).sanitizeDot()
+	}
+
+	tmpl, err := template.ParseFiles("audio.html")
+	if err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, err.Error())
+		return
+	}
+
+	type Audio struct {
+		AudioAddress string
+		Name         string
+	}
+
+	data := struct {
+		CurrentPath string
+		Audios      []Audio
+	}{
+		CurrentPath: string(requestedPath),
+		Audios:      []Audio{},
+	}
+
+	walkErr := filepath.Walk(string(requestedPath.toServerPath()),
+		func(path string, _info fs.FileInfo, _err error) error {
+			if len(strings.Split(path, ".")) != 2 {
+				return nil
+			}
+			storagePath, err := filepath.Abs("./storage")
+			if err != nil {
+				return err
+			}
+
+			address := webPath(strings.Replace(path, storagePath, "", 1))
+			address = webPath(strings.ReplaceAll(string(address), "\\", "/"))
+
+			extFilter := AudioExtension
+			match := false
+			for _, ext := range extFilter {
+				if filepath.Ext(string(address)) == ext {
+					match = true
+					break
+				}
+			}
+
+			if !match {
+				return nil
+			}
+
+			data.Audios = append(data.Audios, Audio{
+				AudioAddress: strings.Repeat("../", strings.Count(filepath.Clean(r.URL.Path), "\\")) + string(address), //r.Host + "/" + string(address) doesn't work for some reason
 				Name:         filepath.Base(string(address)),
 			})
 
