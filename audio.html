@@ -1,0 +1,299 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .entry {
+            display: flex;
+            flex-direction: row;
+            font-size: 2.5vh;
+        }
+
+        .head {
+            display: flex;
+            position: relative;
+            width: 4vw;
+            height: 4vw;
+            align-items: center;
+        }
+
+        .body {
+            display: flex;
+            align-items: center;
+        }
+
+        .head:hover .index {
+            opacity: 0;
+        }
+
+        .head:hover .play {
+            opacity: 1;
+        }
+
+        .index {
+            position: absolute;
+            display: inline-flex;
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            opacity: 1;
+            transition: opacity 0.3s ease-in;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .play {
+            display: inline-flex;
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #control {
+            display: flex;
+            flex-direction: column;
+            background-color: black;
+            width: 100vw;
+            height: 10vh;
+            position: fixed;
+            bottom: 0;
+        }
+
+        .control-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 0.5vw;
+            height: 50%;
+        }
+
+        .timeline-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 2vw;
+            height: 50%;
+        }
+
+        .timeline {
+            display: inline-flex;
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+        }
+
+        input[type="range"] {
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+            width: 33vw;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: #727272;
+            height: 0.5rem;
+        }
+
+        input[type="range"]:hover::-webkit-slider-thumb {
+            transform: scale(1);
+        }
+
+        input[type="range"]::-moz-range-track {
+            background: #727272;
+            height: 0.5rem;
+        }
+
+        input[type="range"]:hover::-moz-range-thumb {
+            transform: scale(1);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: auto;
+            border-radius: 50%;
+            background-color: white;
+            height: 0.75rem;
+            width: 0.75rem;
+            transform: scale(0);
+            transition: all 0.05s ease-out;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            -moz-appearance: none;
+            appearance: none;
+            border: none;
+            border-radius: 50%;
+            background-color: white;
+            height: 0.75rem;
+            width: 0.75rem;
+            transform: scale(0);
+            transition: all 0.05s ease-out;
+        }
+
+        .control {
+            font-size: 3vh;
+            background-color: transparent;
+            width: 7vh;
+            height: 5vh;
+            border: none;
+            cursor: pointer;
+            outline: none;
+            border-radius: 5%;
+        }
+
+        .flow {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+            width: 5vh;
+            height: 5vh;
+        }
+
+        .flow .control {
+            color: black;
+            width: 4vh;
+            height: 4vh;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .flow-play {
+            position: absolute;
+            z-index: 3;
+            opacity: 1;
+            transition: opacity 0.3s ease-in;
+        }
+
+        .flow-pause {
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+        }
+
+        :root {
+            color-scheme: dark;
+        }
+    </style>
+</head>
+<body>
+    <span>{{.CurrentPath}}</span>
+    <div class="container">
+        {{range $index, $_ := .Audios}}
+            <div class="entry">
+                <div class="head">
+                    <span class="index">{{$index}}</span>
+                    <span class="play">▶</span>
+                </div>
+                <div class="body">
+                    <a class="address" id="{{$index}}" href="{{.AudioAddress}}">{{.Name}}</a>
+                </div>
+            </div>
+        {{end}}
+    </div>
+    <div id="control">
+        <div class="control-container">
+            <button class="control" onclick="nextAudioControl()">↝</button>
+            <button class="control">⏮</button>
+            <div class="flow">
+                <button class="control flow-play">▶</button>
+                <button class="control flow-pause">⏸</button>
+            </div>
+            <button class="control">⏭</button>
+            <button class="control onclick="nextAudioControl()">⥁</button>
+        </div>
+        <div class="timeline-container">
+            <span class="timeline now">0:00</span>
+            <input class="timeline-slider" type="range" min="0" max="100" value="0">
+            <span class="timeline end">0:00</span>
+        </div>
+    </div>
+    <script>
+        let timeNow = document.getElementsByClassName("now")[0]
+        let timeEnd = document.getElementsByClassName("end")[0]
+        let shufle = false
+        let loop = false
+        let audioCount = {{len .Audios}}
+
+        let abortAudio = new AbortController()
+
+        const audio = new Audio(document.getElementById(0).attributes.href.value)
+
+        Array.from(document.getElementsByClassName("index")).forEach((span) => {
+            span.textContent = Number(span.textContent) + 1
+        })
+
+        Array.from(document.getElementsByClassName("head")).forEach((head) => {
+            head.addEventListener("click", () => {
+                playAudio(Number(head.getElementsByClassName("index")[0].textContent) - 1)
+            })
+        })
+
+        function nextAudioControl() {
+            shufle = !shufle
+            loop = !loop
+            document.getElementById("shufle").style.background = shufle? "gray" : "none"
+            document.getElementById("loop").style.background = loop? "gray" : "none"
+        }
+
+        function playAudio(id) {
+            abortAudio.abort()
+            abortAudio = new AbortController()
+            audio.pause()
+            audio.currentTime = 0
+            audio.src = document.getElementById(id).attributes.href.value
+
+            audio.addEventListener("loadeddata", () => {
+                timeNow.textContent = "0:00"
+                timeEnd.textContent = `${Math.floor(audio.duration / 60)}:${Math.round(audio.duration % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})}`
+                audio.play()
+            }, { signal: abortAudio.signal })
+            audio.addEventListener("ended", () => {
+                playNextAudio(id)
+            }, { signal: abortAudio.signal })
+        }
+
+        function playNextAudio(id) {
+            if (shufle) {
+                playAudio(Math.round(Math.random() * (audioCount - 1)))
+                return
+            }
+
+            if (loop) {
+                playAudio(id)
+                return
+            }
+
+            if (id < (audioCount - 1)) {
+                playAudio(id + 1)
+                return
+            }
+
+            playAudio(0)
+        }
+    </script>
+</body>
+</html>
