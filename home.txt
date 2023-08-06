@@ -45,24 +45,10 @@ NOTE: if you request to /image without the path
       is the same thing
 
 
-|  go to path /image to see all available audios
+|  go to path /audio to see all available audios
 |             ^^^^^^^^
 |____> IPADDRESS:61102/audio
 
-every endpoint you request after /audio
-will start a recursive search for all audios
-starting at the requested directory
-e.g.
-                                                        |‾‾‾> the storage base path
-IPADDRESS:61102/audio/storage/music> the music folder
-                                          |___> the audio base path
+essentially the same as /image
 
-in the event that the requested endpoint is a file path
-it wouldn't show anything and wont throw an error(cuz my lazy ass)
-
-NOTE: if you request to /audio without the path
-      it will perform the default behaviour of
-      starting a recursive search at /storage
-      in order words
-      IPADDRESS:61102/audio and IPADDRESS:61102/audio/storage
-      is the same thing
+NOTE: you can tap/click on the numeber to play the corresponding audio
