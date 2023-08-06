@@ -119,7 +119,7 @@
             appearance: none;
             margin-top: auto;
             border-radius: 50%;
-            background-color: white;
+            background-color: black;
             height: 0.75rem;
             width: 0.75rem;
             transform: scale(0);
@@ -131,7 +131,7 @@
             appearance: none;
             border: none;
             border-radius: 50%;
-            background-color: white;
+            background-color: black;
             height: 0.75rem;
             width: 0.75rem;
             transform: scale(0);
@@ -139,11 +139,11 @@
         }
         
         input[type="range"]:hover::-webkit-slider-thumb {
-            transform: scale(1);
+            transform: scale(1.25);
         }
         
         input[type="range"]:hover::-moz-range-thumb {
-            transform: scale(1);
+            transform: scale(1.25);
         }
 
         .control {
@@ -221,7 +221,7 @@
         </div>
         <div class="timeline-container">
             <span class="timeline now">0:00</span>
-            <input class="timeline-slider" type="range" min="0" max="100" value="0" onchange="seekTo(this.value / this.max)">
+            <input class="timeline-slider" type="range" min="0" max="1000" value="0" onchange="seekTo(this.value / this.max)">
             <span class="timeline end">0:00</span>
         </div>
     </div>
@@ -353,8 +353,8 @@
 
         function timelineUpdate() {
             timeNow.textContent = `${Math.floor(audio.currentTime / 60)}:${Math.floor(audio.currentTime % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})}`
-            timelineSlider.value = Math.floor((audio.currentTime / audio.duration) * 100)
-            timelineSlider.style.background = `linear-gradient(to right, white ${timelineSlider.value}%, #727272 ${timelineSlider.value}%)`
+            timelineSlider.value = Math.floor((audio.currentTime / audio.duration) * timelineSlider.max)
+            timelineSlider.style.background = `linear-gradient(to right, white ${(timelineSlider.value / timelineSlider.max) * 100}%, #727272 ${(timelineSlider.value / timelineSlider.max) * 100}%)`
         }
     </script>
 </body>
