@@ -198,7 +198,7 @@
     <div class="container">
         {{range $index, $_ := .Audios}}
             <div class="entry" id="{{$index}}">
-                <div class="head">
+                <div class="head" onclick="playAudio({{$index}})">
                     <span class="index">{{$index}}</span>
                     <span class="play">▶</span>
                 </div>
@@ -240,12 +240,6 @@
 
         Array.from(document.getElementsByClassName("index")).forEach((span) => {
             span.textContent = Number(span.textContent) + 1
-        })
-
-        Array.from(document.getElementsByClassName("head")).forEach((head) => {
-            head.addEventListener("click", () => {
-                playAudio(Number(head.getElementsByClassName("index")[0].textContent) - 1)
-            })
         })
 
         function nextAudioControl(type) {
