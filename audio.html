@@ -221,7 +221,7 @@
         </div>
         <div class="timeline-container">
             <span class="timeline now">0:00</span>
-            <input class="timeline-slider" type="range" min="0" max="100" value="0">
+            <input class="timeline-slider" type="range" min="0" max="100" value="0" onchange="seekTo(this.value / this.max)">
             <span class="timeline end">0:00</span>
         </div>
     </div>
@@ -241,6 +241,10 @@
         Array.from(document.getElementsByClassName("index")).forEach((span) => {
             span.textContent = Number(span.textContent) + 1
         })
+
+        function seekTo(ratio) {
+            audio.currentTime = audio.duration * ratio
+        }
 
         function nextAudioControl(type) {
             if (type === "shufle") {
@@ -304,6 +308,9 @@
             audio.currentTime = 0
             currentAudioId = id
 
+            document.getElementsByClassName("flow-play")[0].style.opacity = 0
+            document.getElementsByClassName("flow-pause")[0].style.opacity = 1
+
             let audioEntry = document.getElementById(id)
             audio.src = audioEntry.getElementsByTagName("a")[0].attributes.href.value
 
@@ -345,7 +352,7 @@
         }
 
         function timelineUpdate() {
-            timeNow.textContent = `${Math.floor(audio.currentTime / 60)}:${Math.round(audio.currentTime % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})}`
+            timeNow.textContent = `${Math.floor(audio.currentTime / 60)}:${Math.floor(audio.currentTime % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})}`
             timelineSlider.value = Math.floor((audio.currentTime / audio.duration) * 100)
             timelineSlider.style.background = `linear-gradient(to right, white ${timelineSlider.value}%, #727272 ${timelineSlider.value}%)`
         }
