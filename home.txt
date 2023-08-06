@@ -1,0 +1,68 @@
+|  go to path /storage to see available content
+|             ^^^^^^^^
+|____> IPADDRESS:61102/storage
+
+every endpoint you request after /storage
+will request an entry from the server filesystem
+e.g.
+                          |‾‾‾> the public folder
+IPADDRESS:61102/storage/public
+                   |___> the storage folder
+
+the above address will display the content of the public folder
+if a request is not a folder
+
+IPADDRESS:61102/storage/public/publicText.txt
+                                     |___> file name can contain spaces
+
+the file content will be displayed if possible
+
+NOTE: only request to the /storage path will be treated this way
+      more storage path might be added in the future but most
+      base path will be reserved for features, not storage
+
+
+|  go to path /image to see all available images
+|             ^^^^^^^^
+|____> IPADDRESS:61102/image
+
+every endpoint you request after /image
+will start a recursive search for all images
+starting at the requested directory
+e.g.
+                          |‾‾‾> the storage base path
+IPADDRESS:61102/image/storage/loli---> the loli folder inside storage
+                   |___> the image base path
+
+in the event that the requested endpoint is a file path
+it wouldn't show anything and wont throw an error(cuz my lazy ass)
+
+NOTE: if you request to /image without the path
+      it will perform the default behaviour of
+      starting a recursive search at /storage
+      in order words
+      IPADDRESS:61102/image and IPADDRESS:61102/image/storage
+      is the same thing
+
+
+|  go to path /image to see all available audios
+|             ^^^^^^^^
+|____> IPADDRESS:61102/audio
+
+every endpoint you request after /audio
+will start a recursive search for all audios
+starting at the requested directory
+e.g.
+                                                        |‾‾‾> the storage base path
+IPADDRESS:61102/audio/storage/music> the music folder
+                                          |___> the audio base path
+
+in the event that the requested endpoint is a file path
+it wouldn't show anything and wont throw an error(cuz my lazy ass)
+
+NOTE: if you request to /audio without the path
+      it will perform the default behaviour of
+      starting a recursive search at /storage
+      in order words
+      IPADDRESS:61102/audio and IPADDRESS:61102/audio/storage
+      is the same thing
