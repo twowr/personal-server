@@ -11,6 +11,7 @@ import (
 	"text/template"
 
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/gofor-little/env"
 )
 
 type webPath string
@@ -55,8 +56,17 @@ func main() {
 	http.HandleFunc(string(Audio), audioHandler)
 	http.HandleFunc(string(Countdown), countdownHandler)
 
-	fmt.Println("listening on port 61102")
-	if err := http.ListenAndServe(":61102", nil); err != nil {
+	if err := env.Load(".env"); err != nil {
+		log.Fatal(err)
+	}
+
+	port, err := env.MustGet("PORT")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("listening on port", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 		return
 	}
