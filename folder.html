@@ -29,6 +29,9 @@
             Last modified: {{.LastMod}}
 
         {{end}}
+        {{if (eq .Count 0)}}
+        <span>this folder is empty</span>
+        {{end}}
     </pre>
 </body>
 </html>
