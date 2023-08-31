@@ -20,6 +20,13 @@ var authenticatedUsers = make(map[string]time.Time)
 
 var sessionLimit = time.Date(0, 0, 1, 0, 0, 0, 0, time.Now().Location())
 
+func init() {
+	fmt.Println("../../.env")
+	if err := env.Load("../../.env"); err != nil {
+		panic(err)
+	}
+}
+
 func CheckAuthentication(w http.ResponseWriter, r *http.Request) authenticationState {
 	if expireDate, ok := authenticatedUsers[strings.Split(r.RemoteAddr, ":")[0]]; ok {
 		if time.Now().After(expireDate) {

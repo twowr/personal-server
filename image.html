@@ -1,0 +1,67 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #container {
+            display: grid;
+            grid-template-columns: auto auto auto;
+        }
+
+        img {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+        }
+
+        #image {
+            position: relative;
+            width: 33vw;
+            height: 33vw;
+        }
+
+        #image:hover #cover {
+            opacity: 0;
+        }
+
+        #image:hover #full {
+            opacity: 1;
+        }
+
+        #cover {
+            z-index: 3;
+            object-fit: cover;
+            opacity: 1;
+            transition: opacity 0.3s ease-in;
+        }
+
+        #full {
+            z-index: 2;
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+        }
+
+        :root {
+            color-scheme: dark;
+        }
+    </style>
+</head>
+<body>
+    <span>{{.CurrentPath}}</span>
+    <div id="container">
+        {{range .Images}}
+            <div id="image">
+                <a href="{{.ImageAddress}}"><img id="cover" src="{{.ImageAddress}}" alt="{{.Name}}"></a>
+                <a href="{{.ImageAddress}}"><img id="full" src="{{.ImageAddress}}" alt="{{.Name}}"></a>
+            </div>
+        {{end}}
+    </div>
+</body>
+</html>
