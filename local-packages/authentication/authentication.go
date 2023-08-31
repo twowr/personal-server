@@ -21,8 +21,7 @@ var authenticatedUsers = make(map[string]time.Time)
 var sessionLimit = time.Date(0, 0, 1, 0, 0, 0, 0, time.Now().Location())
 
 func init() {
-	fmt.Println("../../.env")
-	if err := env.Load("../../.env"); err != nil {
+	if err := env.Load(); err != nil {
 		panic(err)
 	}
 }
