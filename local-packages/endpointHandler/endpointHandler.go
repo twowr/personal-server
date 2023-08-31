@@ -199,6 +199,7 @@ func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 
 		if auth.VerifyCreds(r.FormValue("username"), r.FormValue("password")) == auth.Authenticated {
+			auth.AddAuthenticatedUser(strings.Split(r.RemoteAddr, ":")[0])
 
 			data := struct {
 				ResultMessage string

@@ -5,8 +5,10 @@ import (
 	"log"
 	"net/http"
 
+	auth "pfh/local-packages/authentication"
 	epHandler "pfh/local-packages/endpointHandler"
 
+	"github.com/eiannone/keyboard"
 	"github.com/gofor-little/env"
 )
 
@@ -28,6 +30,31 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	keysEvents, err := keyboard.GetKeys(10)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = keyboard.Close()
+	}()
+
+	fmt.Println("down arrow to print current users id")
+
+	go func() {
+		for {
+			event := <-keysEvents
+			if event.Err != nil {
+				panic(event.Err)
+			}
+			if event.Key == keyboard.KeyEsc {
+				break
+			}
+			if event.Key == keyboard.KeyArrowDown {
+				fmt.Println(auth.GetCurrentAuthenticatedUsers())
+			}
+		}
+	}()
 
 	fmt.Println("listening on port", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {

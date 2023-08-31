@@ -56,6 +56,10 @@ func VerifyCreds(username string, passwordInput string) authenticationState {
 	return Authenticated
 }
 
-func VerifyClient(clientId string) {
-	authenticatedUsers[strings.Split(clientId, ":")[0]] = time.Now().AddDate(sessionLimit.Year(), int(sessionLimit.Month()), sessionLimit.Day())
+func GetCurrentAuthenticatedUsers() map[string]time.Time {
+	return authenticatedUsers
+}
+
+func AddAuthenticatedUser(user string) {
+	authenticatedUsers[user] = time.Now().AddDate(sessionLimit.Year(), int(sessionLimit.Month()), sessionLimit.Day())
 }
