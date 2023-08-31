@@ -69,9 +69,11 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 
 		switch dir.IsDir() {
 		case true:
-			tmpl, err := template.ParseFiles("folder.html")
+			files, err := os.ReadDir(string(requestedPath.toServerPath()))
 			if err != nil {
-				rawWriteDirContent(w, r, requestedPath)
+				fmt.Println(err)
+				fmt.Fprint(w, err.Error())
+				return
 			}
 
 			type File struct {
@@ -82,27 +84,26 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			data := struct {
-				Title string
-				Files []File
+				Title  string
+				Files  []File
+				Length int
 			}{
-				Title: dir.Name(),
-				Files: []File{},
-			}
-
-			files, err := os.ReadDir(string(requestedPath.toServerPath()))
-			if err != nil {
-				fmt.Println(err)
-				fmt.Fprint(w, err.Error())
-				return
+				Title:  dir.Name(),
+				Files:  []File{},
+				Length: 0,
 			}
 
 			for _, file := range files {
+				if file.Name()[0] == 46 {
+					continue
+				}
 				fileInfo, err := file.Info()
 				var lastMod = fmt.Sprintf("%d/%d/%d %d:%d", fileInfo.ModTime().Year(), fileInfo.ModTime().Month(), fileInfo.ModTime().Day(), fileInfo.ModTime().Hour(), fileInfo.ModTime().Minute())
 				if err != nil {
 					fmt.Println(err)
 					lastMod = err.Error()
 				}
+
 				data.Files = append(data.Files, File{
 					IsDir: func() string {
 						if file.IsDir() {
@@ -115,6 +116,12 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 					Path:    string(requestedPath)[1:] + "/" + file.Name(),
 					LastMod: lastMod,
 				})
+				data.Length = len(data.Files)
+			}
+
+			tmpl, err := template.ParseFiles("folder.html")
+			if err != nil {
+				rawWriteDirContent(w, r, requestedPath)
 			}
 
 			tmpl.Execute(w, data)
