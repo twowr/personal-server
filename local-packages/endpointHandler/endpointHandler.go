@@ -336,7 +336,7 @@ func AudioHandler(w http.ResponseWriter, r *http.Request) {
 		Audios:      []Audio{},
 	}
 
-	walkErr := filepath.Walk(string(requestedPath.toServerPath()),
+	err = filepath.Walk(string(requestedPath.toServerPath()),
 		func(path string, _info fs.FileInfo, _err error) error {
 			if len(strings.Split(path, ".")) != 2 {
 				return nil
@@ -370,9 +370,9 @@ func AudioHandler(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 
-	if walkErr != nil {
-		fmt.Println(walkErr)
-		fmt.Fprint(w, walkErr.Error())
+	if err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, err.Error())
 		return
 	}
 
