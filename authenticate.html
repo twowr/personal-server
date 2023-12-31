@@ -1,0 +1,388 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authenticate</title>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            width: 40vh;
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .submit {
+            width: 10vh;
+            height: 2.5vh;
+            align-self: flex-end;
+        }
+
+        .input-container {
+            display: grid;
+            width: 40vh;
+            grid-template-columns: 20vh 20vh;
+        }
+        
+        label {
+            width: 20vh;
+            height: 5vh;
+            grid-column: auto;
+            grid-row: auto;
+            text-align: left;
+        }
+
+        .result-message {
+            width: 40vh;
+            height: 5vh;
+        }
+
+        .idkwhatthehelldoinamethis {
+            width: 20vh;
+            height: 5vh;
+            grid-column: auto;
+            grid-row: auto;
+            justify-content: center;
+        }
+
+        input {
+            width: 20vh;
+        }
+
+        .loader {
+            border: 16px solid #f3f3f3; /* Light grey */
+            border-top: 16px solid #3498db; /* Blue */
+            border-radius: 50%;
+            animation: spin 2s linear infinite;
+            justify-content: center;
+            width: 5vh;
+            height: 5vh;
+            margin-top: 45vh;
+        }
+
+        .loader-container {
+            display: flex;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        :root {
+            color-scheme: dark;
+        }
+    </style>
+</head>
+<body>
+    <form method="post" name="base" action="" method="">
+        <div class="input-container">
+            <label>Username</label>
+            <div class="idkwhatthehelldoinamethis">
+                <input class="username" type="text" name="username" value="">
+            </div>
+            <label>Password</label>
+            <div class="idkwhatthehelldoinamethis">
+                <input class="password" type="password" name="password" value="">
+            </div>
+        </div>
+        <span class="result-message">{{.ResultMessage}}</span>
+        <button class="submit" type="button" onclick="submitform()">Login</button>
+        <input type="hidden" name="p" value="{{.P}}">
+        <input type="hidden" name="g" value="{{.G}}">
+        <input type="hidden" name="c_pub" value="" id="c_pub">
+        <input type="hidden" name="eu" value="" id="eu" class="eu">
+        <input type="hidden" name="ep" value="" id="ep">
+    </form>
+
+    <div class="loader-container">
+        <div class="loader"></div>
+    </div>
+
+    <script>
+        function rand_big_int(min, max) {
+            if (min > max) {
+                throw new Error("where is your common sense, min can't be larger than max")
+            }
+
+            let dif = max - min
+
+            let numerator = ""
+            while (numerator < dif.toString().length) {
+                numerator += Math.random().toString().split(".")[1].replace("e", "").replace("-", "")
+            }
+
+            numerator = numerator.slice(0, dif.toString().length)
+
+            let denominator = "1" + "0".repeat(dif.toString().length)
+
+            return min + (((dif + 1n) * BigInt(numerator)) / BigInt(denominator))
+        }
+
+        async function mod_exp(b, e, mod) {
+            let result = 1n
+            
+            b = b % mod
+
+            if (b === 0n) {
+                return 0n
+            }
+
+            while (e > 0n) {
+                if (e & 1n) {
+                    result = (result * b) % mod
+                }
+
+                e = e >> 1n
+                b = (b * b) % mod
+            }
+
+            return result
+        }
+
+        async function encrypt(message, key) {
+            const encoder = new TextEncoder()
+
+            const algorithm = { name: "AES-GCM", iv: crypto.getRandomValues(new Uint8Array(12)) }
+
+            const ciphertextBuffer = await crypto.subtle.encrypt(
+                algorithm,
+                await crypto.subtle.importKey("raw", key, { name: "AES-GCM" }, false, ["encrypt"]),
+                encoder.encode(message)
+            )
+
+            const ciphertextWithNonce = new Uint8Array([...algorithm.iv, ...new Uint8Array(ciphertextBuffer)])
+
+            return arrayBufferToHexString(ciphertextWithNonce)
+        }
+
+        async function decrypt(ciphertextWithNonce, key) {
+            const algorithm = { name: 'AES-GCM', iv: ciphertextWithNonce.slice(0, 12) };
+
+            const keyBuffer = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['decrypt']);
+            const messageBuffer = await crypto.subtle.decrypt(algorithm, keyBuffer, ciphertextWithNonce.slice(12));
+
+            const decoder = new TextDecoder();
+            const message = decoder.decode(messageBuffer);
+
+            return message;
+        }
+
+        function arrayBufferToHexString(buffer) {
+            return [...new Uint8Array(buffer)]
+                    .map(b => { return b.toString(16).padStart(2, "0") })
+                    .join("")
+        }
+
+        function hexStringToUint8Array(hex) {
+            if (BigInt("0x" + hex) === 0n) {
+                console.log(hex)
+                return new Uint8Array(0)
+            }
+
+            //padding
+            if (hex.length % 2 === 1) {
+                hex = "0" + hex
+            }
+
+            let byteLength = hex.length / 2
+            let ui8arr = new Uint8Array(byteLength)
+
+            let byteIndex = 0
+            for (let i = 0; i < hex.length; i += 2) {
+                ui8arr[byteIndex] = parseInt(hex.slice(i, i + 2), 16)
+                byteIndex++
+            }
+
+            return ui8arr
+        }
+
+
+        async function sha256(message) {
+            // hash the message
+            const hashBuffer = await crypto.subtle.digest("SHA-256", message)
+
+            // convert ArrayBuffer to Array
+            const hashArray = new Uint8Array(hashBuffer)
+
+            // convert bytes to hex string                  
+            const hashHex = arrayBufferToHexString(hashArray)
+            return hashHex;
+        }
+
+        async function exchange(p, g, s_pub) {
+
+            const c_pri = rand_big_int(1n, p - 2n)
+            const c_pub = await mod_exp(g, c_pri, p)
+            
+            const secret_key = await mod_exp(s_pub, c_pri, p)
+
+            const secret = await sha256(hexStringToUint8Array(secret_key.toString(16)))
+
+            return { secret, c_pub }
+        }
+    </script>
+
+    <script>
+        const isExchange = {{.Exchange}}
+        let loading = true
+
+        let key = ""
+
+        if (isExchange) {
+            const bodyStyles = window.getComputedStyle(document.body)
+            const bodyBackgroundColor = bodyStyles.backgroundColor
+            const loaderContainer = document.querySelector(".loader-container")
+            loaderContainer.style.backgroundColor = bodyBackgroundColor
+
+            exchange({{.P}}, {{.G}}, {{.ServerPublic}}).then((r) => {
+                key = r.secret
+                localStorage.setItem("2wrpfhkey", r.secret)
+                document.getElementById("c_pub").value = r.c_pub.toString()
+                document.getElementsByTagName("form")[0].style.opacity = 1
+                document.getElementsByClassName("loader-container")[0].style.opacity = 0
+                document.getElementsByClassName("loader-container")[0].style.width = 0
+                loading = false
+            })
+        }
+
+        if (!isExchange) {
+            document.getElementsByTagName("form")[0].style.opacity = 1
+            document.getElementsByClassName("loader-container")[0].style.opacity = 0
+            document.getElementsByClassName("loader-container")[0].style.width = 0
+            loading = false
+        }
+
+        async function submitform() {
+            if (!loading && isExchange) {
+                let form = document.getElementsByTagName('form')[0].cloneNode(true)
+                form.method = "post"
+                form.name = "postform"
+
+                form.getElementsByClassName("username")[0].value = await encrypt(form.getElementsByClassName("username")[0].value, hexStringToUint8Array(key))
+                form.getElementsByClassName("password")[0].value = await encrypt(form.getElementsByClassName("password")[0].value, hexStringToUint8Array(key))
+
+                form.style = "display: hidden;"
+                document.body.appendChild(form)
+                form.submit()
+            }
+
+            if (!isExchange) {
+                let form = document.getElementsByTagName('form')[0].cloneNode(true)
+                form.method = "post"
+                form.name = "postform"
+
+                form.getElementsByClassName("username")[0].value = -1
+                form.getElementsByClassName("password")[0].value = -1
+
+                form.style = "display: hidden;"
+                document.body.appendChild(form)
+                form.submit()
+            }
+        }
+
+        // async function rand_n_bit_binary(n) {
+        //     let result = "1"
+
+        //     for (let i = 0; i < n - 1; i++) {
+        //         const randomBit = Math.round(Math.random())
+        //         result += randomBit
+        //     }
+
+        //     return BigInt("0b" + result)
+        // }
+
+        // async function isqrt(n) {
+        //     //if 1 return 1
+        //     //if 0 return 0
+        //     if (n < 2n) {
+        //         return n
+        //     }
+
+        //     let x0 = n / 2n
+        //     let x1 = (x0 + (n / x0)) / 2n
+
+        //     while (x1 < x0) {
+        //         x0 = x1
+        //         x1 = (x0 + (n / x0)) / 2n
+        //     }
+
+        //     return x0
+        // }
+
+        // async function eugcd(a, b) {
+        //     if (a === 0n || b === 0n) {
+        //         return a + b
+        //     }
+
+        //     if (a > b) {
+        //         return eugcd(b, a % b)
+        //     } else {
+        //         return eugcd(a, b % a)
+        //     }
+        // }
+
+        // async function random_coprime(n) {
+        //     while (true) {
+        //         let candidate = await rand_big_int(2n, n - 1n)
+        //         if (await eugcd(n, candidate) == 1n) {
+        //             return candidate
+        //         }
+        //     }
+        // }
+
+        // async function is_prime(n, iteration) {
+        //     if (n === 2n || n === 3n) return true
+        //     if (n % 2n == 0n || n % 3n == 0n) return false
+        //     if (n <= 1n) return false
+
+        //     let s = 0n
+        //     let d = n - 1n
+        //     while (d % 2n === 0n) {
+        //         s += 1n
+        //         d /= 2n
+        //     }
+
+        //     for (let i = 0; i < iteration; i++) {
+        //         const a = await rand_big_int(2n, n - 1n)
+        //         let x = await mod_exp(a, d, n)
+        //         if (x === 1n || x === n - 1n) continue
+
+        //         for (let r = 0n; r <= s - 1n; r += 1n) {
+        //             x = (x * x) % n
+        //             if (x === n - 1n) break
+        //         }
+
+        //         if (x != n - 1n) return false
+        //     }
+
+        //     return true
+        // }
+
+        // async function rand_n_bit_prime_binary(n) {
+        //     while (true) {
+        //         let candidate = await rand_n_bit_binary(n)
+        //         if (await is_prime(candidate, 10)) {
+        //             return candidate
+        //         }
+
+        //         console.log("failed")
+        //     }
+        // }
+    </script>
+</body>
+</html>

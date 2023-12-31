@@ -2,9 +2,9 @@ package auth
 
 import (
 	"fmt"
+	"math/big"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gofor-little/env"
 )
@@ -16,50 +16,65 @@ const (
 	Unauthenticated authenticationState = false
 )
 
-var authenticatedUsers = make(map[string]time.Time)
+var authenticateRequests = make(map[string]big.Int)
 
-var sessionLimit = time.Date(0, 0, 1, 0, 0, 0, 0, time.Now().Location())
+var authenticatedUsers = make(map[string][32]byte)
 
 func init() {
-	if err := env.Load(); err != nil {
+	if err := env.Load(".env"); err != nil {
 		panic(err)
 	}
 }
 
-func CheckAuthentication(w http.ResponseWriter, r *http.Request) authenticationState {
-	if expireDate, ok := authenticatedUsers[strings.Split(r.RemoteAddr, ":")[0]]; ok {
-		if time.Now().After(expireDate) {
-			delete(authenticatedUsers, strings.Split(r.RemoteAddr, ":")[0])
-			http.Error(w, "Session time expired", http.StatusUnauthorized)
-			return Unauthenticated
-		}
-
-		return Authenticated
+func CheckAuthentication(w http.ResponseWriter, r *http.Request) (authenticationState, [32]byte) {
+	if key, ok := authenticatedUsers[strings.Split(r.RemoteAddr, ":")[0]]; ok {
+		return Authenticated, key
 	}
 
 	http.Error(w, "Unauthoried", http.StatusUnauthorized)
-	return Unauthenticated
+	return Unauthenticated, *new([32]byte)
 }
 
-func VerifyCreds(username string, passwordInput string) authenticationState {
+func VerifyCreds(username string, passwordInput string) (authenticationState, error) {
 	password, err := env.MustGet(username)
 	if err != nil {
-		fmt.Println(err)
-		return Unauthenticated
+		return Unauthenticated, err
 	}
 
 	if password != passwordInput {
-		fmt.Println("wrong password")
-		return Unauthenticated
+		return Unauthenticated, fmt.Errorf("wrong password")
 	}
 
-	return Authenticated
+	return Authenticated, nil
 }
 
-func GetCurrentAuthenticatedUsers() map[string]time.Time {
+func GetAuthenticatedUser(user string) [32]byte {
+	return authenticatedUsers[user]
+}
+
+func GetAuthenticatedUsers() map[string][32]byte {
 	return authenticatedUsers
 }
 
-func AddAuthenticatedUser(user string) {
-	authenticatedUsers[user] = time.Now().AddDate(sessionLimit.Year(), int(sessionLimit.Month()), sessionLimit.Day())
+func AddAuthenticatedUser(user string, key [32]byte) {
+	authenticatedUsers[user] = key
+}
+
+func RemoveAuthenticatedUser(user string) {
+	delete(authenticatedUsers, user)
+}
+
+func GetAuthenticateRequest(user string) big.Int {
+	return authenticateRequests[user]
+}
+func GetAuthenticateRequests() map[string]big.Int {
+	return authenticateRequests
+}
+
+func AddAuthenticateRequest(user string, s_secret big.Int) {
+	authenticateRequests[user] = s_secret
+}
+
+func RemoveAuthenticateRequest(user string) {
+	delete(authenticateRequests, user)
 }

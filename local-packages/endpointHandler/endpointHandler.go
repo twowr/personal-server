@@ -1,8 +1,10 @@
 package epHandler
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 	"text/template"
 
 	auth "pfh/local-packages/authentication"
+	encryption "pfh/local-packages/encryption"
 
 	"github.com/gabriel-vasile/mimetype"
 )
@@ -25,6 +28,7 @@ const (
 	Countdown    webPath = "/countdown/"
 	Upload       webPath = "/upload/"
 	Authenticate webPath = "/authenticate/"
+	Test         webPath = "/test/"
 )
 
 var storageMountPoint = [...]string{"storage"}
@@ -34,7 +38,7 @@ var (
 	AudioExtension []string = []string{".mp3", ".wav"}
 )
 
-func (path webPath) sanitizeDot() webPath {
+func (path webPath) sanitize() webPath {
 	resultPath := fmt.Sprintf(".%v", path)
 	base := filepath.Base(resultPath)
 	offset := func() int {
@@ -58,7 +62,7 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		requestedPath := webPath(r.URL.Path)
-		requestedPath = requestedPath.sanitizeDot()
+		requestedPath = requestedPath.sanitize()
 
 		dir, err := os.Stat(string(requestedPath.toServerPath()))
 		if err != nil {
@@ -126,20 +130,79 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 
 			tmpl.Execute(w, data)
 		case false:
-			if auth.CheckAuthentication(w, r) != auth.Authenticated {
+			var key [32]byte
+			if state, secret_key := auth.CheckAuthentication(w, r); state != auth.Authenticated {
+				return
+			} else {
+				key = secret_key
+			}
+
+			fileData, err := os.ReadFile(string(requestedPath.toServerPath()))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
 				return
 			}
+
+			encrypted, err := encryption.Aes256Encrypt(key, fileData)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
 			contentType, err := mimetype.DetectFile(string(requestedPath.toServerPath()))
 			if err != nil {
 				fmt.Println(err)
 			}
 
-			w.Header().Set("Content-Type", contentType.String())
-			w.Header().Set("Content-Disposition", "inline")
-			http.ServeFile(w, r, string(requestedPath.toServerPath()))
+			data := struct {
+				HexStringData string
+				ContentType   string
+			}{
+				HexStringData: hex.EncodeToString(encrypted),
+				ContentType:   contentType.String(),
+			}
+
+			tmpl, err := template.ParseFiles("test.html")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+
+			tmpl.Execute(w, data)
+
+			// http.ServeFile(w, r, string(requestedPath.toServerPath()))
 		}
 	default:
 		fmt.Fprintf(w, "no")
+	}
+}
+
+func encryptedServe(w http.ResponseWriter, r *http.Request, name string, key [32]byte) {
+	requestedPath := webPath(r.URL.Path)
+	requestedPath = requestedPath.sanitize()
+
+	data, err := os.ReadFile(name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	encrypted, err := encryption.Aes256Encrypt(key, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	contentType, err := mimetype.DetectFile(string(requestedPath.toServerPath()))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	w.Header().Set("Content-Type", contentType.String())
+	w.Header().Set("Content-Disposition", "inline")
+	_, err = w.Write(encrypted)
+	if err != nil {
+		fmt.Println("wtf file serve failed bruh")
+		return
 	}
 }
 
@@ -181,49 +244,135 @@ func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath we
 func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
 
-	tmpl, err := template.ParseFiles("login.html")
+	userAddress := strings.Split(r.RemoteAddr, ":")[0]
+
+	tmpl, err := template.ParseFiles("authenticate.html")
 	if err != nil {
 		fmt.Println(err)
 		fmt.Fprint(w, err.Error())
 		return
 	}
 
-	switch r.Method {
-	case http.MethodGet:
-		data := struct {
-			ResultMessage string
-		}{
-			ResultMessage: "",
+	type exchangeStruct struct {
+		ResultMessage string
+		P             string
+		G             string
+		ServerPublic  string
+		Exchange      bool
+	}
+
+	startExchange := func(message string) {
+		p, g := encryption.NewPublicKeyPair()
+		serverSecret, serverPublic := encryption.GetExchangeMaterial(p, g)
+
+		auth.AddAuthenticateRequest(userAddress, serverSecret)
+
+		data := exchangeStruct{
+			ResultMessage: message,
+			P:             p.Text(10) + "n", //+ "n" because it's the BigInt format in javascript
+			G:             g.Text(10) + "n",
+			ServerPublic:  serverPublic.Text(10) + "n",
+			Exchange:      true,
 		}
 
 		tmpl.Execute(w, data)
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		startExchange("")
 	case http.MethodPost:
 		if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
 			http.Error(w, "Error processing submitted data", http.StatusBadRequest)
+			auth.RemoveAuthenticateRequest(userAddress)
+			//manual request removal here instead of defer to preserve the request on initalizing condition
 			return
 		}
 
 		r.ParseForm()
 
-		if auth.VerifyCreds(r.FormValue("username"), r.FormValue("password")) == auth.Authenticated {
-			auth.AddAuthenticatedUser(strings.Split(r.RemoteAddr, ":")[0])
-
-			data := struct {
-				ResultMessage string
-			}{
-				ResultMessage: "Authenticate Successfully",
-			}
-
-			tmpl.Execute(w, data)
-		} else {
-			data := struct {
-				ResultMessage string
-			}{
-				ResultMessage: "Authentication failed",
-			}
-
-			tmpl.Execute(w, data)
+		//initate new authenticate request
+		if r.FormValue("username") == "-1" && r.FormValue("password") == "-1" {
+			startExchange("New authenticate request generated")
+			return
 		}
+
+		//can use defer now
+		defer auth.RemoveAuthenticateRequest(userAddress)
+
+		p, success := new(big.Int).SetString(strings.Replace(r.FormValue("p"), "n", "", -1), 10)
+		if !success {
+			http.Error(w, "Error processing submitted data", http.StatusBadRequest)
+			return
+		}
+
+		clientPublic, success := new(big.Int).SetString(r.FormValue("c_pub"), 10)
+		if !success {
+			fmt.Println(r.FormValue("c_pub"))
+			http.Error(w, "Error processing submitted data", http.StatusBadRequest)
+			return
+		}
+
+		serverSecret := auth.GetAuthenticateRequest(userAddress)
+
+		secret_key := encryption.SolveSecretKey(*clientPublic, serverSecret, *p)
+
+		hexDecodeUsername, err := hex.DecodeString(r.FormValue("username"))
+		if err != nil {
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		hexDecodePassword, err := hex.DecodeString(r.FormValue("password"))
+		if err != nil {
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		username, err := encryption.Aes256Decrypt(secret_key, hexDecodeUsername)
+		if err != nil {
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		password, err := encryption.Aes256Decrypt(secret_key, hexDecodePassword)
+		if err != nil {
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		fmt.Println("exchange end reached")
+
+		var responseMessage string
+		authState, err := auth.VerifyCreds(string(username), string(password))
+
+		if err != nil {
+			fmt.Println(err)
+			responseMessage = "Authentication failed, press login again before submiting another login request"
+		}
+
+		if authState == auth.Authenticated {
+			auth.AddAuthenticatedUser(userAddress, secret_key)
+			responseMessage = "Authenticate Successfully"
+		}
+
+		data := exchangeStruct{
+			ResultMessage: responseMessage,
+			P:             "-1n",
+			G:             "-1n",
+			ServerPublic:  "-1n",
+			Exchange:      false,
+		}
+
+		tmpl.Execute(w, data)
 	}
 }
 
@@ -242,7 +391,7 @@ func ImageHandler(w http.ResponseWriter, r *http.Request) {
 
 	requestedPath := webPath(string(Storage))
 	if r.URL.Path != string(Image) {
-		requestedPath = webPath("/" + strings.Replace(r.URL.Path, string(Image), "", 1)).sanitizeDot()
+		requestedPath = webPath("/" + strings.Replace(r.URL.Path, string(Image), "", 1)).sanitize()
 	}
 
 	tmpl, err := template.ParseFiles("image.html")
@@ -313,7 +462,7 @@ func AudioHandler(w http.ResponseWriter, r *http.Request) {
 
 	requestedPath := webPath(string(Storage))
 	if r.URL.Path != string(Audio) {
-		requestedPath = webPath("/" + strings.Replace(r.URL.Path, string(Audio), "", 1)).sanitizeDot()
+		requestedPath = webPath("/" + strings.Replace(r.URL.Path, string(Audio), "", 1)).sanitize()
 	}
 
 	tmpl, err := template.ParseFiles("audio.html")
@@ -379,29 +528,42 @@ func AudioHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
-func UploadHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
-	if auth.CheckAuthentication(w, r) != auth.Authenticated {
-		return
-	}
+// func UploadHandler(w http.ResponseWriter, r *http.Request) {
+// 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
+// 	if auth.CheckAuthentication(w, r) != auth.Authenticated {
+// 		return
+// 	}
 
-	tmpl, err := template.ParseFiles("upload.html")
-	if err != nil {
-		fmt.Println(err)
-		fmt.Fprint(w, err.Error())
-		return
-	}
+// 	tmpl, err := template.ParseFiles("upload.html")
+// 	if err != nil {
+// 		fmt.Println(err)
+// 		fmt.Fprint(w, err.Error())
+// 		return
+// 	}
 
-	data := struct {
-		MountPoints []string
-	}{
-		MountPoints: storageMountPoint[:],
-	}
+// 	data := struct {
+// 		MountPoints []string
+// 	}{
+// 		MountPoints: storageMountPoint[:],
+// 	}
 
-	tmpl.Execute(w, data)
-}
+// 	tmpl.Execute(w, data)
+// }
 
 func CountdownHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
 	http.ServeFile(w, r, "countdown.html")
+}
+
+func TestHandler(w http.ResponseWriter, r *http.Request) {
+	file, err := os.ReadFile("home.txt")
+	if err != nil {
+		fmt.Fprint(w, err)
+	}
+
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Content-Type", "video/mp4")
+	w.Header().Set("THGR-encryption", "false")
+
+	w.Write(file)
 }

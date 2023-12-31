@@ -19,8 +19,9 @@ func main() {
 	http.HandleFunc(string(epHandler.Image), epHandler.ImageHandler)
 	http.HandleFunc(string(epHandler.Audio), epHandler.AudioHandler)
 	http.HandleFunc(string(epHandler.Countdown), epHandler.CountdownHandler)
-	http.HandleFunc(string(epHandler.Upload), epHandler.UploadHandler)
+	// http.HandleFunc(string(epHandler.Upload), epHandler.UploadHandler)
 	http.HandleFunc(string(epHandler.Authenticate), epHandler.AuthenticateHandler)
+	http.HandleFunc(string(epHandler.Test), epHandler.TestHandler)
 
 	if err := env.Load(".env"); err != nil {
 		log.Fatal(err)
@@ -40,6 +41,7 @@ func main() {
 	}()
 
 	fmt.Println("down arrow to print current users id")
+	fmt.Println("up arrow to print current authenticate requests id")
 
 	go func() {
 		for {
@@ -51,7 +53,10 @@ func main() {
 				break
 			}
 			if event.Key == keyboard.KeyArrowDown {
-				fmt.Println(auth.GetCurrentAuthenticatedUsers())
+				fmt.Println(auth.GetAuthenticatedUsers())
+			}
+			if event.Key == keyboard.KeyArrowUp {
+				fmt.Println(auth.GetAuthenticateRequests())
 			}
 		}
 	}()
