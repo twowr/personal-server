@@ -1,13 +1,13 @@
 package encryption_test
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
 	"io"
 	"math/big"
+
+	xchacha20 "golang.org/x/crypto/chacha20poly1305"
 )
 
 const (
@@ -43,50 +43,43 @@ func GetExchangeMaterial(p big.Int, g big.Int) (secret big.Int, public big.Int) 
 }
 
 func SolveSecretKey(ce_public big.Int, s_secret big.Int, p big.Int) (key [32]byte) {
+	fmt.Println("cep:", ce_public.Text(10))
+	fmt.Println("p:", p.Text(10))
+	fmt.Println(new(big.Int).Exp(&ce_public, &s_secret, &p).Bytes())
 	return sha256.Sum256(new(big.Int).Exp(&ce_public, &s_secret, &p).Bytes())
 }
 
-func Aes256Encrypt(key [32]byte, message []byte) (Encrypted []byte, Error error) {
-	block, err := aes.NewCipher(key[:])
+func Encrypt(key [32]byte, message []byte) (Encrypted []byte, Error error) {
+	cipher, err := xchacha20.NewX(key[:])
 	if err != nil {
 		return make([]byte, 0), err
 	}
 
-	aesgcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return make([]byte, 0), err
-	}
-
-	nonce := make([]byte, aesgcm.NonceSize())
+	nonce := make([]byte, cipher.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return make([]byte, 0), err
 	}
 
-	result := aesgcm.Seal(nil, nonce, message, nil)
-	result = append(nonce, result...)
+	result := cipher.Seal(nil, nonce, message, nil)
 
 	return result, nil
 }
 
-func Aes256Decrypt(key [32]byte, encrypted []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key[:])
-	if err != nil {
-		return make([]byte, 0), nil
-	}
-
-	aesgcm, err := cipher.NewGCM(block)
+func Decrypt(key [32]byte, encrypted []byte) ([]byte, error) {
+	fmt.Println(key)
+	cipher, err := xchacha20.NewX(key[:])
 	if err != nil {
 		return make([]byte, 0), err
 	}
 
-	nonceSize := aesgcm.NonceSize()
-	if len(encrypted) < nonceSize {
+	nonceSize := cipher.NonceSize()
+	if len(encrypted) < nonceSize+cipher.Overhead() {
 		return make([]byte, 0), fmt.Errorf("ciphertext is too short")
 	}
 
-	nonce, encrypted_message := encrypted[:nonceSize], encrypted[nonceSize:]
+	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
 
-	message, err := aesgcm.Open(nil, nonce[:], encrypted_message, nil)
+	message, err := cipher.Open(nil, nonce[:], ciphertext, nil)
 	if err != nil {
 		return make([]byte, 0), err
 	}

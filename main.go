@@ -21,6 +21,7 @@ func main() {
 	http.HandleFunc(string(epHandler.Countdown), epHandler.CountdownHandler)
 	// http.HandleFunc(string(epHandler.Upload), epHandler.UploadHandler)
 	http.HandleFunc(string(epHandler.Authenticate), epHandler.AuthenticateHandler)
+	http.HandleFunc(string(epHandler.Script), epHandler.ScriptHandler)
 	http.HandleFunc(string(epHandler.Test), epHandler.TestHandler)
 
 	if err := env.Load(".env"); err != nil {

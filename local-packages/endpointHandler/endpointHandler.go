@@ -28,6 +28,7 @@ const (
 	Countdown    webPath = "/countdown/"
 	Upload       webPath = "/upload/"
 	Authenticate webPath = "/authenticate/"
+	Script       webPath = "/script/"
 	Test         webPath = "/test/"
 )
 
@@ -54,6 +55,24 @@ func (path webPath) sanitize() webPath {
 
 func (path webPath) toServerPath() serverPath {
 	return serverPath("." + path)
+}
+
+func ScriptHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
+
+	switch r.Method {
+	case http.MethodGet:
+		requestedPath := webPath(r.URL.Path)
+		requestedPath = requestedPath.sanitize()
+
+		w.Header().Set("Content-Type", "application/javascript")
+
+		fmt.Println(string(requestedPath.toServerPath()))
+
+		http.ServeFile(w, r, string(requestedPath.toServerPath()))
+	default:
+		fmt.Fprintf(w, "no")
+	}
 }
 
 func StorageHandler(w http.ResponseWriter, r *http.Request) {
@@ -126,6 +145,7 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 			tmpl, err := template.ParseFiles("folder.html")
 			if err != nil {
 				rawWriteDirContent(w, r, requestedPath)
+				return
 			}
 
 			tmpl.Execute(w, data)
@@ -143,7 +163,7 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			encrypted, err := encryption.Aes256Encrypt(key, fileData)
+			encrypted, err := encryption.Encrypt(key, fileData)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -186,7 +206,7 @@ func encryptedServe(w http.ResponseWriter, r *http.Request, name string, key [32
 		return
 	}
 
-	encrypted, err := encryption.Aes256Encrypt(key, data)
+	encrypted, err := encryption.Encrypt(key, data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -284,8 +304,8 @@ func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
 			http.Error(w, "Error processing submitted data", http.StatusBadRequest)
-			auth.RemoveAuthenticateRequest(userAddress)
 			//manual request removal here instead of defer to preserve the request on initalizing condition
+			auth.RemoveAuthenticateRequest(userAddress)
 			return
 		}
 
@@ -315,7 +335,9 @@ func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 
 		serverSecret := auth.GetAuthenticateRequest(userAddress)
 
+		fmt.Println((*clientPublic).Text(10))
 		secret_key := encryption.SolveSecretKey(*clientPublic, serverSecret, *p)
+		fmt.Println(hex.EncodeToString(secret_key[:]))
 
 		hexDecodeUsername, err := hex.DecodeString(r.FormValue("username"))
 		if err != nil {
@@ -333,7 +355,7 @@ func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		username, err := encryption.Aes256Decrypt(secret_key, hexDecodeUsername)
+		username, err := encryption.Decrypt(secret_key, hexDecodeUsername)
 		if err != nil {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -341,7 +363,7 @@ func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		password, err := encryption.Aes256Decrypt(secret_key, hexDecodePassword)
+		password, err := encryption.Decrypt(secret_key, hexDecodePassword)
 		if err != nil {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
