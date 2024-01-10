@@ -43,9 +43,6 @@ func GetExchangeMaterial(p big.Int, g big.Int) (secret big.Int, public big.Int) 
 }
 
 func SolveSecretKey(ce_public big.Int, s_secret big.Int, p big.Int) (key [32]byte) {
-	fmt.Println("cep:", ce_public.Text(10))
-	fmt.Println("p:", p.Text(10))
-	fmt.Println(new(big.Int).Exp(&ce_public, &s_secret, &p).Bytes())
 	return sha256.Sum256(new(big.Int).Exp(&ce_public, &s_secret, &p).Bytes())
 }
 
@@ -60,13 +57,14 @@ func Encrypt(key [32]byte, message []byte) (Encrypted []byte, Error error) {
 		return make([]byte, 0), err
 	}
 
-	result := cipher.Seal(nil, nonce, message, nil)
+	result := cipher.Seal(nonce, nonce, message, nil)
+
+	fmt.Println("Encrypt complete")
 
 	return result, nil
 }
 
 func Decrypt(key [32]byte, encrypted []byte) ([]byte, error) {
-	fmt.Println(key)
 	cipher, err := xchacha20.NewX(key[:])
 	if err != nil {
 		return make([]byte, 0), err
@@ -83,6 +81,8 @@ func Decrypt(key [32]byte, encrypted []byte) ([]byte, error) {
 	if err != nil {
 		return make([]byte, 0), err
 	}
+
+	fmt.Println("Decrypt complete")
 
 	return message, nil
 }

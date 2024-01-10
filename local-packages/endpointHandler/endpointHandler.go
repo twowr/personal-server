@@ -66,10 +66,19 @@ func ScriptHandler(w http.ResponseWriter, r *http.Request) {
 		requestedPath = requestedPath.sanitize()
 
 		w.Header().Set("Content-Type", "application/javascript")
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 
-		fmt.Println(string(requestedPath.toServerPath()))
+		fileData, err := os.ReadFile(string(requestedPath.toServerPath()))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
 
-		http.ServeFile(w, r, string(requestedPath.toServerPath()))
+		_, err = w.Write(fileData)
+		if err != nil {
+			fmt.Println("wtf file serve failed bruh")
+			return
+		}
 	default:
 		fmt.Fprintf(w, "no")
 	}
@@ -196,36 +205,6 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func encryptedServe(w http.ResponseWriter, r *http.Request, name string, key [32]byte) {
-	requestedPath := webPath(r.URL.Path)
-	requestedPath = requestedPath.sanitize()
-
-	data, err := os.ReadFile(name)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	encrypted, err := encryption.Encrypt(key, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	contentType, err := mimetype.DetectFile(string(requestedPath.toServerPath()))
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	w.Header().Set("Content-Type", contentType.String())
-	w.Header().Set("Content-Disposition", "inline")
-	_, err = w.Write(encrypted)
-	if err != nil {
-		fmt.Println("wtf file serve failed bruh")
-		return
-	}
-}
-
 func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath webPath) {
 	files, err := os.ReadDir(string(requestedPath.toServerPath()))
 	if err != nil {
@@ -282,6 +261,7 @@ func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	startExchange := func(message string) {
+		fmt.Println("exchange started")
 		p, g := encryption.NewPublicKeyPair()
 		serverSecret, serverPublic := encryption.GetExchangeMaterial(p, g)
 
@@ -335,9 +315,7 @@ func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 
 		serverSecret := auth.GetAuthenticateRequest(userAddress)
 
-		fmt.Println((*clientPublic).Text(10))
 		secret_key := encryption.SolveSecretKey(*clientPublic, serverSecret, *p)
-		fmt.Println(hex.EncodeToString(secret_key[:]))
 
 		hexDecodeUsername, err := hex.DecodeString(r.FormValue("username"))
 		if err != nil {

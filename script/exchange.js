@@ -45,10 +45,10 @@ async function encrypt(message, key) {
 }
 
 async function decrypt(ciphertext, key) {
-    let cipherText = (new TextEncoder()).encode(ciphertext)
-    let message = AeadXChaCha20Poly1305(key, cipherText.subarray(0, 24), cipherText.subarray(24, cipherText.length - 16), new Uint8Array())
+    let buffer = ciphertext
+    let message = AeadXChaCha20Poly1305(key, buffer.subarray(0, 24), buffer.subarray(24, buffer.length - 16), new Uint8Array())
 
-    return arrayBufferToHexString(message.subarray(24, message.length - 16))
+    return message.subarray(24, message.length - 16)
 }
 
 async function exchange(p, g, s_pub) {
@@ -58,12 +58,7 @@ async function exchange(p, g, s_pub) {
     
     const secret_key = await mod_exp(s_pub, c_pri, p)
 
-    console.log("s_pub:", s_pub)
-    console.log("c_pri:", c_pri)
-    console.log("p:", p)
-    console.log(hexStringToUint8Array(secret_key.toString(16)))
-
-    const secret = sha256(hexStringToUint8Array(secret_key.toString(16)))
+    const secret = arrayBufferToHexString(sha256(hexStringToUint8Array(secret_key.toString(16))))
 
     return { secret, c_pub }
 }

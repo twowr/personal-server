@@ -113,8 +113,8 @@
         <div class="loader"></div>
     </div>
 
-    <script src="../script/crypto.js"></script>
-    <script src="../script/exchange.js"></script>
+    <script src="/script/crypto.js"></script>
+    <script src="/script/exchange.js"></script>
 
     <script>
         const isExchange = {{.Exchange}}
@@ -132,8 +132,6 @@
                 key = r.secret
                 localStorage.setItem("2wrpfhkey", r.secret)
                 localStorage.setItem("2wrpfhkeycounter", 1)
-                console.log(arrayBufferToHexString(r.secret))
-                console.log(r.c_pub.toString(10))
                 document.getElementById("c_pub").value = r.c_pub.toString(10)
                 document.getElementsByTagName("form")[0].style.opacity = 1
                 document.getElementsByClassName("loader-container")[0].style.opacity = 0

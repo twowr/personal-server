@@ -19,6 +19,7 @@ run_test([
     { in: (new TextEncoder()).encode("abc"), out: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" },
     { in: (new TextEncoder()).encode("abcd"), out: "88d4266fd4e6338d13b845fcf289579d209c897823b9217da3e161936f031589" },
     { in: (new TextEncoder()).encode("abcde"), out: "36bbe50ed96841d10443bcb670d6554f0a34b761be67ec9c4a8ad2c0c44ca42c" },
+    { in: (new TextEncoder()).encode("abd981236abc865ad74c85b856ad65d867ca56a978665c67b896598d5c9586ad65c6586ddcbacdbfffff"), out: "d1ec42a722028341605a41ab9c73302c6368a3db164dc52b08d490639f3cb008" },
 ], (in_object) => {
     return arrayBufferToHexString(sha256(in_object))
 })

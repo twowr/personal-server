@@ -150,7 +150,7 @@ function sha256(message_uint8array) {
     ]
 
     //*   Computation   *//
-    for (let i = 0; i < (messageBuffer.length * 8); i += 512) {
+    for (let i = 0; i < messageBuffer.length; i += 64) {
         //the 512 bits of the input block may be expressed as sixteen 32-bit words
         let M = new Uint32Array(16)
         for (let j = 0; j < 16; j++) {
@@ -426,15 +426,14 @@ function AeadChaCha20Poly1305(key_uint8array_32elements, nonce_uint8array_12elem
     let cipherText = ChaCha20Encrypt(key, 1, nonce, plaintext_uint8array)
 
     let macData = new Uint8Array([
-        ...aad_uint8array, ...pad16(aad_uint8array),
+        ...(new Uint8Array(aad_uint8array)), ...pad16(aad_uint8array),
         ...cipherText, ...pad16(cipherText),
         ...number64bitToUint8Array(aad_uint8array.length, true),
         ...number64bitToUint8Array(cipherText.length, true)
     ])
 
     let tag = poly1305Mac(macData, otk)
-    console.log(tag)
-
+    
     return new Uint8Array([...cipherText, ...tag])
 }
 
