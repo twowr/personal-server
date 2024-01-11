@@ -15,6 +15,7 @@ import (
 	encryption "pfh/local-packages/encryption"
 
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/inhies/go-bytesize"
 )
 
 type webPath string
@@ -113,16 +114,19 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 				Name    string
 				Path    string
 				LastMod string
+				Size    string
 			}
 
 			data := struct {
 				Title  string
 				Files  []File
 				Length int
+				Size   string
 			}{
 				Title:  dir.Name(),
 				Files:  []File{},
 				Length: 0,
+				Size:   "0.0kb",
 			}
 
 			for _, file := range files {
@@ -130,10 +134,22 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				fileInfo, err := file.Info()
-				var lastMod = fmt.Sprintf("%d/%d/%d %d:%d", fileInfo.ModTime().Year(), fileInfo.ModTime().Month(), fileInfo.ModTime().Day(), fileInfo.ModTime().Hour(), fileInfo.ModTime().Minute())
+				lastMod := fmt.Sprintf("%d/%d/%d %d:%d", fileInfo.ModTime().Year(), fileInfo.ModTime().Month(), fileInfo.ModTime().Day(), fileInfo.ModTime().Hour(), fileInfo.ModTime().Minute())
 				if err != nil {
 					fmt.Println(err)
 					lastMod = err.Error()
+				}
+
+				var sizeText string
+				size, err := bytesize.Parse(fmt.Sprint(fileInfo.Size()) + "B")
+				if err != nil {
+					fmt.Println(err)
+					sizeText = err.Error()
+				} else {
+					bytesize.LongUnits = false
+					bytesize.Format = "%.0f "
+
+					sizeText = size.String()
 				}
 
 				data.Files = append(data.Files, File{
@@ -147,6 +163,7 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 					Name:    file.Name(),
 					Path:    string(requestedPath)[1:] + "/" + file.Name(),
 					LastMod: lastMod,
+					Size:    sizeText,
 				})
 				data.Length = len(data.Files)
 			}

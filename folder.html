@@ -26,7 +26,7 @@
     <pre>
         {{range .Files}}
             {{.IsDir}} <a href="/{{.Path}}">{{.Name}}</a>
-            Last modified: {{.LastMod}}
+            Last modified: {{.LastMod}} {{if (eq .IsDir "FILE")}} | {{.Size}} {{end}}
 
         {{end}}
         {{if (eq .Count 0)}}

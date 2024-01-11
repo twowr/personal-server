@@ -8,7 +8,6 @@ function hexStringToUint8Array(hex) {
     }
 
     if (flag) {
-        console.log(hex)
         return new Uint8Array(0)
     }
 
@@ -433,7 +432,7 @@ function AeadChaCha20Poly1305(key_uint8array_32elements, nonce_uint8array_12elem
     ])
 
     let tag = poly1305Mac(macData, otk)
-    
+
     return new Uint8Array([...cipherText, ...tag])
 }
 
