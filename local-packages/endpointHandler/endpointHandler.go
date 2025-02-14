@@ -23,11 +23,12 @@ type webPath string
 type serverPath string
 
 const (
-	Storage      webPath = "/storage/"
-	Image        webPath = "/image/"
-	Audio        webPath = "/audio/"
-	Countdown    webPath = "/countdown/"
-	Upload       webPath = "/upload/"
+	Storage   webPath = "/storage/"
+	Image     webPath = "/image/"
+	Audio     webPath = "/audio/"
+	File      webPath = "/file/"
+	Countdown webPath = "/countdown/"
+	// Upload       webPath = "/upload/"
 	Authenticate webPath = "/authenticate/"
 	Script       webPath = "/script/"
 	Test         webPath = "/test/"
@@ -55,7 +56,22 @@ func (path webPath) sanitize() webPath {
 }
 
 func (path webPath) toServerPath() serverPath {
-	return serverPath("." + path)
+	tokens := strings.Split(string(path), "/")
+
+	if len(tokens) < 3 {
+		return "./err.err"
+	}
+
+	service := tokens[1]
+
+	switch service {
+	case "storage":
+		return serverPath("." + path)
+	case "file":
+		return serverPath("./storage/" + strings.Join(tokens[2:], "/"))
+	default:
+		return "./err.err"
+	}
 }
 
 func ScriptHandler(w http.ResponseWriter, r *http.Request) {
