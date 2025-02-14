@@ -170,7 +170,7 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 
 			tmpl, err := template.ParseFiles("folder.html")
 			if err != nil {
-				rawWriteDirContent(w, r, requestedPath)
+				rawWriteDirContent(w, requestedPath)
 				return
 			}
 
@@ -200,20 +200,13 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 				fmt.Println(err)
 			}
 
-			data := struct {
-				HexStringData string
-				ContentType   string
-			}{
-				HexStringData: hex.EncodeToString(encrypted),
-				ContentType:   contentType.String(),
-			}
+			w.Header().Set("Content-Type", contentType.String())
 
-			tmpl, err := template.ParseFiles("test.html")
+			_, err = w.Write(encrypted)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				fmt.Println("wtf file serve failed bruh")
+				return
 			}
-
-			tmpl.Execute(w, data)
 
 			// http.ServeFile(w, r, string(requestedPath.toServerPath()))
 		}
@@ -222,7 +215,7 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func rawWriteDirContent(w http.ResponseWriter, r *http.Request, requestedPath webPath) {
+func rawWriteDirContent(w http.ResponseWriter, requestedPath webPath) {
 	files, err := os.ReadDir(string(requestedPath.toServerPath()))
 	if err != nil {
 		fmt.Println(err)
@@ -336,34 +329,26 @@ func AuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 
 		hexDecodeUsername, err := hex.DecodeString(r.FormValue("username"))
 		if err != nil {
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		hexDecodePassword, err := hex.DecodeString(r.FormValue("password"))
 		if err != nil {
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		username, err := encryption.Decrypt(secret_key, hexDecodeUsername)
 		if err != nil {
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		password, err := encryption.Decrypt(secret_key, hexDecodePassword)
 		if err != nil {
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		fmt.Println("exchange end reached")
