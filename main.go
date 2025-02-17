@@ -16,6 +16,7 @@ func main() {
 	http.HandleFunc("/favicon.ico", handleIcon)
 	http.HandleFunc("/", epHandler.MainHandler)
 	http.HandleFunc(string(epHandler.Storage), epHandler.StorageHandler)
+	http.HandleFunc(string(epHandler.File), epHandler.FileHandler)
 	http.HandleFunc(string(epHandler.Image), epHandler.ImageHandler)
 	http.HandleFunc(string(epHandler.Audio), epHandler.AudioHandler)
 	http.HandleFunc(string(epHandler.Countdown), epHandler.CountdownHandler)

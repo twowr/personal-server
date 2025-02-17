@@ -1,0 +1,87 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        pre {
+            margin: 8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            -moz-control-character-visibility: visible;
+        }
+
+        img {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            text-align: center;
+            position: absolute;
+            inset: 0;
+            margin: auto;
+            image-orientation: from-image;
+        }
+
+        .nowrap pre {
+            white-space: pre;
+        }
+
+        html:not([dir]) pre {
+            unicode-bidi: plaintext;
+        }
+
+        :root {
+            color-scheme: light dark;
+        }
+    </style>
+</head>
+<body>
+    
+</body>
+
+<script src="/script/crypto.js"></script>
+<script src="/script/exchange.js"></script>
+
+<script>
+    try {
+        (async () => {
+            const res = await fetch("http://{{.Path}}")
+            if (!res.ok) {
+                throw new Error(`Response status: ${response.status}`)
+            }
+
+            const contentType = res.headers.get("content-type")
+            const encryptedFile = await res.arrayBuffer()
+            const file = await decrypt(new Uint8Array(encryptedFile), hexStringToUint8Array(localStorage.getItem("2wrpfhkey")))
+            if (contentType == "image/png" || contentType == "image/jpeg") {
+                document.querySelector(":root").style.setProperty("color", "#eee")
+                document.querySelector(":root").style.setProperty("background", 'url("chrome://global/skin/media/imagedoc-darknoise.png") fixed')
+                const blob = new Blob([file], { type: contentType })
+                const imgUrl = URL.createObjectURL(blob)
+
+                const img = document.createElement("img")
+                img.classList.add("content")
+                img.src = imgUrl
+
+                document.body.appendChild(img)
+            } else if (contentType == "text/plain; charset=utf-8") {
+                const pre = document.createElement("pre")
+                pre.textContent = new TextDecoder().decode(file)
+                document.body.appendChild(pre)
+            } else {
+                const pre = document.createElement("pre")
+                pre.textContent = "file type not supported... YET"
+                document.body.appendChild(pre)
+            }
+        })()
+    } catch (error) {
+        let errorDiv = document.createElement("div")
+        errorDiv.textContent = error
+        document.appendChild(errorDiv)
+    }
+</script>
+</html>

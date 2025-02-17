@@ -52,13 +52,16 @@ func (path webPath) sanitize() webPath {
 	}()
 	resultPath = resultPath[:len(resultPath)-len(base)-offset]
 	resultPath = strings.ReplaceAll(resultPath, ".", "") + base
+	if len(resultPath) <= 0 || resultPath[0] != '/' {
+		resultPath = "/" + resultPath
+	}
 	return webPath(resultPath)
 }
 
 func (path webPath) toServerPath() serverPath {
 	tokens := strings.Split(string(path), "/")
 
-	if len(tokens) < 3 {
+	if len(tokens) < 2 {
 		return "./err.err"
 	}
 
@@ -68,7 +71,9 @@ func (path webPath) toServerPath() serverPath {
 	case "storage":
 		return serverPath("." + path)
 	case "file":
-		return serverPath("./storage/" + strings.Join(tokens[2:], "/"))
+		return serverPath("./" + strings.Join(tokens[2:], "/"))
+	case "script":
+		return serverPath("." + path)
 	default:
 		return "./err.err"
 	}
@@ -102,6 +107,151 @@ func ScriptHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func StorageHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
+
+	switch r.Method {
+	case http.MethodGet:
+		requestedPath := webPath(r.URL.Path)
+		requestedPath = requestedPath.sanitize()
+		fmt.Println(requestedPath)
+
+		dir, err := os.Stat(string(requestedPath.toServerPath()))
+		if err != nil {
+			fmt.Println(err)
+			fmt.Fprint(w, err.Error())
+			return
+		}
+
+		switch dir.IsDir() {
+		case true:
+			files, err := os.ReadDir(string(requestedPath.toServerPath()))
+			if err != nil {
+				fmt.Println(err)
+				fmt.Fprint(w, err.Error())
+				return
+			}
+
+			type File struct {
+				IsDir   string
+				Name    string
+				Path    string
+				LastMod string
+				Size    string
+			}
+
+			data := struct {
+				Title  string
+				Files  []File
+				Length int
+				Size   string
+			}{
+				Title:  dir.Name(),
+				Files:  []File{},
+				Length: 0,
+				Size:   "0.0kb",
+			}
+
+			for _, file := range files {
+				if file.Name()[0] == 46 {
+					continue
+				}
+				fileInfo, err := file.Info()
+				lastMod := fmt.Sprintf("%d/%d/%d %d:%d", fileInfo.ModTime().Year(), fileInfo.ModTime().Month(), fileInfo.ModTime().Day(), fileInfo.ModTime().Hour(), fileInfo.ModTime().Minute())
+				if err != nil {
+					fmt.Println(err)
+					lastMod = err.Error()
+				}
+
+				var sizeText string
+				size, err := bytesize.Parse(fmt.Sprint(fileInfo.Size()) + "B")
+				if err != nil {
+					fmt.Println(err)
+					sizeText = err.Error()
+				} else {
+					bytesize.LongUnits = false
+					bytesize.Format = "%.0f "
+
+					sizeText = size.String()
+				}
+
+				data.Files = append(data.Files, File{
+					IsDir: func() string {
+						if file.IsDir() {
+							return "FOLDER"
+						} else {
+							return "FILE"
+						}
+					}(),
+					Name:    file.Name(),
+					Path:    string(requestedPath) + "/" + file.Name(),
+					LastMod: lastMod,
+					Size:    sizeText,
+				})
+				data.Length = len(data.Files)
+			}
+
+			tmpl, err := template.ParseFiles("folder.html")
+			if err != nil {
+				rawWriteDirContent(w, requestedPath)
+				return
+			}
+
+			tmpl.Execute(w, data)
+		case false:
+			data := struct {
+				Path string
+			}{
+				Path: r.Host + "/file" + string(requestedPath),
+			}
+
+			tmpl, err := template.ParseFiles("file.html")
+			if err != nil {
+				fmt.Println(err)
+				fmt.Fprint(w, err.Error())
+				return
+			}
+
+			tmpl.Execute(w, data)
+		}
+	default:
+		fmt.Fprintf(w, "no")
+	}
+}
+
+func rawWriteDirContent(w http.ResponseWriter, requestedPath webPath) {
+	files, err := os.ReadDir(string(requestedPath.toServerPath()))
+	if err != nil {
+		fmt.Println(err)
+		fmt.Fprint(w, err.Error())
+		return
+	}
+
+	for _, file := range files {
+		fmt.Fprintf(w, "\n%v %v\nPath: %v\nLast modification: %v\n\n",
+			func() string {
+				if file.IsDir() {
+					return "FOLDER"
+				} else {
+					return "FILE"
+				}
+			}(),
+			file.Name(),
+			string(requestedPath)[1:]+"/"+file.Name(),
+			func() string {
+				fileInfo, err := file.Info()
+				if err != nil {
+					fmt.Println(err)
+					fmt.Fprint(w, err.Error())
+					return err.Error()
+				}
+
+				return fmt.Sprintf("%d/%d/%d %d:%d", fileInfo.ModTime().Year(), fileInfo.ModTime().Month(), fileInfo.ModTime().Day(), fileInfo.ModTime().Hour(), fileInfo.ModTime().Minute())
+			}(),
+		)
+	}
+}
+
+func FileHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr, "on", r.URL.Path)
 
 	switch r.Method {
@@ -223,46 +373,9 @@ func StorageHandler(w http.ResponseWriter, r *http.Request) {
 				fmt.Println("wtf file serve failed bruh")
 				return
 			}
-
-			// http.ServeFile(w, r, string(requestedPath.toServerPath()))
 		}
 	default:
 		fmt.Fprintf(w, "no")
-	}
-}
-
-func rawWriteDirContent(w http.ResponseWriter, requestedPath webPath) {
-	files, err := os.ReadDir(string(requestedPath.toServerPath()))
-	if err != nil {
-		fmt.Println(err)
-		fmt.Fprint(w, err.Error())
-		return
-	}
-
-	for _, file := range files {
-		fmt.Fprintf(w, "\n%v %v\nPath: %v\nLast modification: %v\n\n",
-			func() string {
-				if file.IsDir() {
-					return "FOLDER"
-				} else {
-					return "FILE"
-				}
-			}(),
-			file.Name(),
-			func() string {
-				return string(requestedPath)[1:] + "/" + file.Name()
-			}(),
-			func() string {
-				fileInfo, err := file.Info()
-				if err != nil {
-					fmt.Println(err)
-					fmt.Fprint(w, err.Error())
-					return err.Error()
-				}
-
-				return fmt.Sprintf("%d/%d/%d %d:%d", fileInfo.ModTime().Year(), fileInfo.ModTime().Month(), fileInfo.ModTime().Day(), fileInfo.ModTime().Hour(), fileInfo.ModTime().Minute())
-			}(),
-		)
 	}
 }
 
