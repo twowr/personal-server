@@ -30,10 +30,6 @@
             opacity: 0;
         }
 
-        #image:hover #full {
-            opacity: 1;
-        }
-
         #cover {
             z-index: 3;
             object-fit: cover;
@@ -44,7 +40,7 @@
         #full {
             z-index: 2;
             object-fit: contain;
-            opacity: 0;
+            opacity: 1;
             transition: opacity 0.3s ease-out;
         }
 
@@ -56,12 +52,40 @@
 <body>
     <span>{{.CurrentPath}}</span>
     <div id="container">
-        {{range .Images}}
+        {{range $index, $_ := .Images}}
             <div id="image">
-                <a href="{{.ImageAddress}}"><img id="cover" src="{{.ImageAddress}}" alt="{{.Name}}"></a>
-                <a href="{{.ImageAddress}}"><img id="full" src="{{.ImageAddress}}" alt="{{.Name}}"></a>
+                <a href="/{{.ImageAddress}}" id="cover-{{$index}}"><img id="cover" src="/file/{{.ImageAddress}}" alt="{{.Name}}"></a>
+                <a href="/{{.ImageAddress}}" id="full-{{$index}}"><img id="full" src="/file/{{.ImageAddress}}" alt="{{.Name}}"></a>
             </div>
         {{end}}
     </div>
 </body>
+<script src="/script/crypto.js"></script>
+<script src="/script/exchange.js"></script>
+
+<script>
+    try {
+        for (let i = 0; i < {{len .Images}}; i++) {
+            (async () => {
+                let a = document.getElementById("cover-" + i)
+                const res = await fetch(a.firstElementChild.src)
+                if (!res.ok) {
+                    throw new Error(`Response status: ${response.status}`)
+                }
+
+                const contentType = res.headers.get("content-type")
+                const encryptedFile = await res.arrayBuffer()
+                const file = await decrypt(new Uint8Array(encryptedFile), hexStringToUint8Array(localStorage.getItem("2wrpfhkey")))
+
+                const blob = new Blob([file], { type: contentType })
+                const imgUrl = URL.createObjectURL(blob)
+                a.firstElementChild.src = imgUrl
+                a = document.getElementById("full-" + i)
+                a.firstElementChild.src = imgUrl
+            })()
+        }
+    } catch(error) {
+        console.log(error)
+    }
+</script>
 </html>
