@@ -203,7 +203,7 @@
                     <span class="play">▶</span>
                 </div>
                 <div class="body">
-                    <a class="address" href="{{.AudioAddress}}">{{.Name}}</a>
+                    <a class="address" href="/file/{{.AudioAddress}}">{{.Name}}</a>
                 </div>
             </div>
         {{end}}
@@ -225,137 +225,165 @@
             <span class="timeline end">0:00</span>
         </div>
     </div>
-    <script>
-        let timeNow = document.getElementsByClassName("now")[0]
-        let timeEnd = document.getElementsByClassName("end")[0]
-        let timelineSlider = document.getElementsByClassName("timeline-slider")[0]
-        let shufle = false
-        let loop = false
-        let audioCount = {{len .Audios}}
+</body>
 
-        let currentAudioId = 0
-        let abortAudio = new AbortController()
-        const audio = new Audio()
-        let isPlaying = false
+<script src="/script/crypto.js"></script>
+<script src="/script/exchange.js"></script>
 
-        Array.from(document.getElementsByClassName("index")).forEach((span) => {
-            span.textContent = Number(span.textContent) + 1
-        })
+<script>
+    try {
+        for (let i = 0; i < {{len .Audios}}; i++) {
+            (async () => {
+                let entry = document.getElementById(i)
+                const res = await fetch(entry.getElementsByClassName("body")[0].firstElementChild.href)
+                if (!res.ok) {
+                    throw new Error(`Response status: ${response.status}`)
+                }
 
-        function seekTo(ratio) {
-            audio.currentTime = audio.duration * ratio
+                const contentType = res.headers.get("content-type")
+                const encryptedFile = await res.arrayBuffer()
+                const file = await decrypt(new Uint8Array(encryptedFile), hexStringToUint8Array(localStorage.getItem("2wrpfhkey")))
+
+                const blob = new Blob([file], { type: contentType })
+                const audioUrl = URL.createObjectURL(blob)
+                entry.getElementsByClassName("body")[0].firstElementChild.href = audioUrl
+            })()
+        }
+    } catch(error) {
+        console.log(error)
+    }
+</script>
+
+<script>
+    let timeNow = document.getElementsByClassName("now")[0]
+    let timeEnd = document.getElementsByClassName("end")[0]
+    let timelineSlider = document.getElementsByClassName("timeline-slider")[0]
+    let shufle = false
+    let loop = false
+    let audioCount = {{len .Audios}}
+
+    let currentAudioId = 0
+    let abortAudio = new AbortController()
+    const audio = new Audio()
+    let isPlaying = false
+
+    Array.from(document.getElementsByClassName("index")).forEach((span) => {
+        span.textContent = Number(span.textContent) + 1
+    })
+
+    function seekTo(ratio) {
+        audio.currentTime = audio.duration * ratio
+    }
+
+    function nextAudioControl(type) {
+        if (type === "shufle") {
+            shufle = !shufle
+            loop = shufle? false : loop
+            document.getElementById("shufle").style.background = shufle? "gray" : "none"
+            document.getElementById("loop").style.background = loop? "gray" : "none"
         }
 
-        function nextAudioControl(type) {
-            if (type === "shufle") {
-                shufle = !shufle
-                loop = shufle? false : loop
-                document.getElementById("shufle").style.background = shufle? "gray" : "none"
-                document.getElementById("loop").style.background = loop? "gray" : "none"
-            }
-
-            if (type === "loop") {
-                loop = !loop
-                shufle = loop? false : shufle
-                document.getElementById("shufle").style.background = shufle? "gray" : "none"
-                document.getElementById("loop").style.background = loop? "gray" : "none"
-            }
-
-            if (type === "flow") {
-                if (audio.paused && isPlaying) {
-                    audio.play()
-                    document.getElementsByClassName("flow-play")[0].style.opacity = 0
-                    document.getElementsByClassName("flow-pause")[0].style.opacity = 1
-                    return
-                }
-
-                if (audio.paused && !isPlaying) {
-                    playAudio(currentAudioId)
-                    document.getElementsByClassName("flow-play")[0].style.opacity = 0
-                    document.getElementsByClassName("flow-pause")[0].style.opacity = 1
-                    return
-                }
-
-                audio.pause()
-                document.getElementsByClassName("flow-play")[0].style.opacity = 1
-                document.getElementsByClassName("flow-pause")[0].style.opacity = 0
-            }
-
-            if (type === "next") {
-                if (currentAudioId < (audioCount - 1)) {
-                    playAudio(currentAudioId + 1)
-                    return
-                }
-
-                playAudio(0)
-            }
-            
-            if (type === "back") {
-                if (currentAudioId > 0) {
-                    playAudio(currentAudioId - 1)
-                    return
-                }
-
-                playAudio(audioCount - 1)
-            }
+        if (type === "loop") {
+            loop = !loop
+            shufle = loop? false : shufle
+            document.getElementById("shufle").style.background = shufle? "gray" : "none"
+            document.getElementById("loop").style.background = loop? "gray" : "none"
         }
 
-        function playAudio(id) {
-            window.clearInterval()
-            abortAudio.abort()
-            abortAudio = new AbortController()
-            audio.pause()
-            audio.currentTime = 0
-            currentAudioId = id
-
-            document.getElementsByClassName("flow-play")[0].style.opacity = 0
-            document.getElementsByClassName("flow-pause")[0].style.opacity = 1
-
-            let audioEntry = document.getElementById(id)
-            audio.src = audioEntry.getElementsByTagName("a")[0].attributes.href.value
-
-            audio.addEventListener("loadeddata", () => {
-                timeNow.textContent = "0:00"
-                timeEnd.textContent = `${Math.floor(audio.duration / 60)}:${Math.round(audio.duration % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})}`
-                isPlaying = true
+        if (type === "flow") {
+            if (audio.paused && isPlaying) {
                 audio.play()
-                Array.from(document.getElementsByClassName("entry")).forEach((entry) => {
-                    entry.style.backgroundColor = "transparent"
-                })
-                audioEntry.style.backgroundColor = "gray"
-            }, { signal: abortAudio.signal })
+                document.getElementsByClassName("flow-play")[0].style.opacity = 0
+                document.getElementsByClassName("flow-pause")[0].style.opacity = 1
+                return
+            }
 
-            audio.addEventListener("ended", () => {
-                playNextAudio(id)
-            }, { signal: abortAudio.signal })
+            if (audio.paused && !isPlaying) {
+                playAudio(currentAudioId)
+                document.getElementsByClassName("flow-play")[0].style.opacity = 0
+                document.getElementsByClassName("flow-pause")[0].style.opacity = 1
+                return
+            }
 
-            window.setInterval(timelineUpdate, 1000)
+            audio.pause()
+            document.getElementsByClassName("flow-play")[0].style.opacity = 1
+            document.getElementsByClassName("flow-pause")[0].style.opacity = 0
         }
 
-        function playNextAudio(id) {
-            if (shufle) {
-                playAudio(Math.round(Math.random() * (audioCount - 1)))
-                return
-            }
-
-            if (loop) {
-                playAudio(id)
-                return
-            }
-
-            if (id < (audioCount - 1)) {
-                playAudio(id + 1)
+        if (type === "next") {
+            if (currentAudioId < (audioCount - 1)) {
+                playAudio(currentAudioId + 1)
                 return
             }
 
             playAudio(0)
         }
+        
+        if (type === "back") {
+            if (currentAudioId > 0) {
+                playAudio(currentAudioId - 1)
+                return
+            }
 
-        function timelineUpdate() {
-            timeNow.textContent = `${Math.floor(audio.currentTime / 60)}:${Math.floor(audio.currentTime % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})}`
-            timelineSlider.value = Math.floor((audio.currentTime / audio.duration) * timelineSlider.max)
-            timelineSlider.style.background = `linear-gradient(to right, white ${(timelineSlider.value / timelineSlider.max) * 100}%, #727272 ${(timelineSlider.value / timelineSlider.max) * 100}%)`
+            playAudio(audioCount - 1)
         }
-    </script>
-</body>
+    }
+
+    function playAudio(id) {
+        window.clearInterval()
+        abortAudio.abort()
+        abortAudio = new AbortController()
+        audio.pause()
+        audio.currentTime = 0
+        currentAudioId = id
+
+        document.getElementsByClassName("flow-play")[0].style.opacity = 0
+        document.getElementsByClassName("flow-pause")[0].style.opacity = 1
+
+        let audioEntry = document.getElementById(id)
+        audio.src = audioEntry.getElementsByTagName("a")[0].attributes.href.value
+
+        audio.addEventListener("loadeddata", () => {
+            timeNow.textContent = "0:00"
+            timeEnd.textContent = `${Math.floor(audio.duration / 60)}:${Math.round(audio.duration % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})}`
+            isPlaying = true
+            audio.play()
+            Array.from(document.getElementsByClassName("entry")).forEach((entry) => {
+                entry.style.backgroundColor = "transparent"
+            })
+            audioEntry.style.backgroundColor = "gray"
+        }, { signal: abortAudio.signal })
+
+        audio.addEventListener("ended", () => {
+            playNextAudio(id)
+        }, { signal: abortAudio.signal })
+    }
+
+    function playNextAudio(id) {
+        if (shufle) {
+            playAudio(Math.round(Math.random() * (audioCount - 1)))
+            return
+        }
+
+        if (loop) {
+            playAudio(id)
+            return
+        }
+
+        if (id < (audioCount - 1)) {
+            playAudio(id + 1)
+            return
+        }
+
+        playAudio(0)
+    }
+
+    function timelineUpdate() {
+        timeNow.textContent = `${Math.floor(audio.currentTime / 60)}:${Math.floor(audio.currentTime % 60).toLocaleString(undefined, {minimumIntegerDigits: 2, useGrouping:false})}`
+        timelineSlider.value = Math.floor((audio.currentTime / audio.duration) * timelineSlider.max)
+        timelineSlider.style.background = `linear-gradient(to right, white ${(timelineSlider.value / timelineSlider.max) * 100}%, #727272 ${(timelineSlider.value / timelineSlider.max) * 100}%)`
+    }
+
+    window.setInterval(timelineUpdate, 1000)
+</script>
 </html>
