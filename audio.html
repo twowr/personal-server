@@ -197,13 +197,13 @@
     <span>{{.CurrentPath}}</span>
     <div class="container">
         {{range $index, $_ := .Audios}}
-            <div class="entry" id="{{$index}}">
+            <div class="entry" id="{{$index}}" audio="/file/{{.AudioAddress}}">
                 <div class="head" onclick="playAudio({{$index}})">
                     <span class="index">{{$index}}</span>
                     <span class="play">▶</span>
                 </div>
                 <div class="body">
-                    <a class="address" href="/file/{{.AudioAddress}}">{{.Name}}</a>
+                    <a class="address" href="{{.AudioAddress}}">{{.Name}}</a>
                 </div>
             </div>
         {{end}}
@@ -235,7 +235,7 @@
         for (let i = 0; i < {{len .Audios}}; i++) {
             (async () => {
                 let entry = document.getElementById(i)
-                const res = await fetch(entry.getElementsByClassName("body")[0].firstElementChild.href)
+                const res = await fetch(entry.attributes.audio.value)
                 if (!res.ok) {
                     throw new Error(`Response status: ${response.status}`)
                 }
@@ -246,7 +246,7 @@
 
                 const blob = new Blob([file], { type: contentType })
                 const audioUrl = URL.createObjectURL(blob)
-                entry.getElementsByClassName("body")[0].firstElementChild.href = audioUrl
+                entry.attributes.audio.value = audioUrl
             })()
         }
     } catch(error) {
@@ -330,7 +330,6 @@
     }
 
     function playAudio(id) {
-        window.clearInterval()
         abortAudio.abort()
         abortAudio = new AbortController()
         audio.pause()
@@ -341,7 +340,8 @@
         document.getElementsByClassName("flow-pause")[0].style.opacity = 1
 
         let audioEntry = document.getElementById(id)
-        audio.src = audioEntry.getElementsByTagName("a")[0].attributes.href.value
+        audio.src = audioEntry.attributes.audio.value
+        console.log(audio.src)
 
         audio.addEventListener("loadeddata", () => {
             timeNow.textContent = "0:00"
