@@ -572,7 +572,7 @@ func ImageHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			data.Images = append(data.Images, Img{
-				ImageAddress: string(address), //r.Host + "/" + string(address) doesn't work for some reason
+				ImageAddress: string(address),
 				Name:         filepath.Base(string(address)),
 			})
 
@@ -643,7 +643,7 @@ func AudioHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			data.Audios = append(data.Audios, Audio{
-				AudioAddress: strings.Repeat("../", strings.Count(filepath.Clean(r.URL.Path), "\\")) + string(address), //r.Host + "/" + string(address) doesn't work for some reason
+				AudioAddress: string(address),
 				Name:         filepath.Base(string(address)),
 			})
 
