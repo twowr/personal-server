@@ -54,8 +54,8 @@
     <div id="container">
         {{range $index, $_ := .Images}}
             <div id="image">
-                <a href="/{{.ImageAddress}}" id="cover-{{$index}}"><img id="cover" src="/file/{{.ImageAddress}}" alt="{{.Name}}"></a>
-                <a href="/{{.ImageAddress}}" id="full-{{$index}}"><img id="full" src="/file/{{.ImageAddress}}" alt="{{.Name}}"></a>
+                <a href="/{{.ImageAddress}}" id="cover-{{$index}}"><img id="cover" src="" alt="{{.Name}}"></a>
+                <a href="/{{.ImageAddress}}" id="full-{{$index}}"><img id="full" src="" alt="{{.Name}}"></a>
             </div>
         {{end}}
     </div>
@@ -68,7 +68,7 @@
         for (let i = 0; i < {{len .Images}}; i++) {
             (async () => {
                 let a = document.getElementById("cover-" + i)
-                const res = await fetch(a.firstElementChild.src)
+                const res = await fetch("/file/" + a.attributes.href.value)
                 if (!res.ok) {
                     throw new Error(`Response status: ${response.status}`)
                 }
