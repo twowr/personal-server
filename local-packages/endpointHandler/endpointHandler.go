@@ -572,7 +572,7 @@ func ImageHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			data.Images = append(data.Images, Img{
-				ImageAddress: "/file/" + string(address), //r.Host + "/" + string(address) doesn't work for some reason
+				ImageAddress: string(address), //r.Host + "/" + string(address) doesn't work for some reason
 				Name:         filepath.Base(string(address)),
 			})
 
