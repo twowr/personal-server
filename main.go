@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	auth "pfh/local-packages/authentication"
 	epHandler "pfh/local-packages/endpointHandler"
@@ -52,7 +53,7 @@ func main() {
 				panic(event.Err)
 			}
 			if event.Key == keyboard.KeyEsc {
-				break
+				os.Exit(0)
 			}
 			if event.Key == keyboard.KeyArrowDown {
 				fmt.Println(auth.GetAuthenticatedUsers())
